@@ -1,0 +1,32 @@
+# File di ambiente virtuale Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database SQLite
+*.db
+*.sqlite3
+
+# File specifici dell'IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# File di log
+*.log
+
+# File di configurazione locali
+instance/
+.env
+
+# File di cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# File di distribuzione/compilazione
+build/
+dist/
+*.egg-info/

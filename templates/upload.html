@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Carica Dati{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Carica Dati Corsa</h2>
+        <p>Seleziona un file .txt dal computer di bordo della tua macchinina.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">File dati (.txt)</label>
+                        <input type="file" class="form-control" id="file" name="file" required accept=".txt">
+                        <div class="form-text">Il file deve essere in formato .txt dal computer di bordo.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="race_name" class="form-label">Nome della corsa</label>
+                        <input type="text" class="form-control" id="race_name" name="race_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="driver" class="form-label">Pilota</label>
+                        <input type="text" class="form-control" id="driver" name="driver">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="vehicle" class="form-label">Veicolo</label>
+                        <input type="text" class="form-control" id="vehicle" name="vehicle">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Note</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Carica e analizza</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                Istruzioni
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">Come caricare i dati</h5>
+                <p class="card-text">
+                    I file devono essere nel formato fornito dal computer di bordo della macchinina.
+                </p>
+                <p class="card-text">
+                    Ogni riga del file rappresenta la velocità raggiunta dalla macchinina ogni 1.52 metri percorsi (un giro ruota).
+                </p>
+                <p class="card-text">
+                    Il sistema ignorerà automaticamente le righe di intestazione e i valori zero ripetuti all'inizio del file.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,194 @@
+/* static/css/dark-theme.css */
+/* Tema scuro moderno per SpeedChart */
+
+:root {
+    --dark-bg: #121829;  /* Blu scuro profondo */
+    --dark-surface: #1E293B;  /* Superficie delle card/pannelli */
+    --dark-primary: #3B82F6;  /* Blu acceso per elementi primari */
+    --dark-secondary: #10B981;  /* Verde acqua per elementi secondari */
+    --dark-accent: #F59E0B;  /* Arancione per accenti */
+    --dark-danger: #EF4444;  /* Rosso per errori */
+    --dark-success: #10B981;  /* Verde per successi */
+    --dark-warning: #F59E0B;  /* Giallo per avvisi */
+    --dark-text: #E5E7EB;  /* Testo chiaro */
+    --dark-text-muted: #9CA3AF;  /* Testo secondario */
+    --dark-border: #374151;  /* Bordi */
+    --dark-hover: #2D3748;  /* Hover su elementi */
+  }
+  
+  /* Stili di base */
+  .dark-theme {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+  }
+  
+  /* Navbar */
+  .theme-navbar {
+    background-color: var(--dark-surface);
+    border-bottom: 1px solid var(--dark-border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Footer */
+  .theme-footer {
+    background-color: var(--dark-surface);
+    color: var(--dark-text-muted);
+    border-top: 1px solid var(--dark-border);
+  }
+  
+  /* Cards */
+  .dark-theme .card {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .dark-theme .card-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--dark-border);
+  }
+  
+  /* Tables */
+  .dark-theme .table {
+    color: var(--dark-text);
+    border-color: var(--dark-border);
+  }
+  
+  .dark-theme .table-hover tbody tr:hover {
+    background-color: var(--dark-hover);
+  }
+  
+  .dark-theme .table thead th {
+    border-bottom-color: var(--dark-border);
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Form controls */
+  .dark-theme .form-control,
+  .dark-theme .form-select {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+  }
+  
+  .dark-theme .form-control:focus,
+  .dark-theme .form-select:focus {
+    background-color: var(--dark-surface);
+    border-color: var(--dark-primary);
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+    color: var(--dark-text);
+  }
+  
+  .dark-theme .form-label {
+    color: var(--dark-text);
+  }
+  
+  .dark-theme .form-text {
+    color: var(--dark-text-muted);
+  }
+  
+  /* Buttons */
+  .dark-theme .btn-primary {
+    background-color: var(--dark-primary);
+    border-color: var(--dark-primary);
+  }
+  
+  .dark-theme .btn-primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+  
+  .dark-theme .btn-secondary {
+    background-color: #4B5563;
+    border-color: #4B5563;
+  }
+  
+  .dark-theme .btn-success {
+    background-color: var(--dark-success);
+    border-color: var(--dark-success);
+  }
+  
+  .dark-theme .btn-danger {
+    background-color: var(--dark-danger);
+    border-color: var(--dark-danger);
+  }
+  
+  /* Alerts */
+  .dark-theme .alert {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+  }
+  
+  .dark-theme .alert-success {
+    border-left: 4px solid var(--dark-success);
+  }
+  
+  .dark-theme .alert-danger {
+    border-left: 4px solid var(--dark-danger);
+  }
+  
+  .dark-theme .alert-warning {
+    border-left: 4px solid var(--dark-warning);
+  }
+  
+  .dark-theme .alert-info {
+    border-left: 4px solid var(--dark-primary);
+  }
+  
+  /* Stile per la tabella dati */
+  .dark-theme .data-row:hover {
+    background-color: var(--dark-hover);
+    cursor: pointer;
+  }
+  
+  .dark-theme .data-row.selected {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+  
+  /* Stile per il punto selezionato sul grafico */
+  .selected-point {
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+  
+  /* Stile per jumbotron */
+  .dark-theme .jumbotron {
+    background-color: var(--dark-surface);
+    border-radius: 0.5rem;
+  }
+  
+  /* Dashboard e grafici */
+  .dark-theme .dash-graph {
+    background-color: var(--dark-surface) !important;
+  }
+  
+  .dark-theme #selected-point-details {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+  }
+  
+  .dark-theme #selected-point-details.has-data {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--dark-primary);
+  }
+  
+  /* Stile cornice iframe */
+  .dark-theme .dash-container {
+    border: 1px solid var(--dark-border);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }

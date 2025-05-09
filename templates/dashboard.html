@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - {{ race.name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>{{ race.name }}</h2>
+        <div class="d-flex justify-content-between">
+            <div>
+                <p><strong>Data:</strong> {{ race.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p><strong>Pilota:</strong> {{ race.driver }}</p>
+                <p><strong>Veicolo:</strong> {{ race.vehicle }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Torna alla lista</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 dash-container">
+        <!-- Contenitore per la dashboard Dash -->
+        <iframe 
+            src="{{ url_for('dash.dash_app') }}?race_id={{ race.id }}" 
+            style="width:100%; height:800px; border:none;"
+            id="dash-iframe"
+        ></iframe>
+    </div>
+</div>
+
+{% if race.notes %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Note
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ race.notes }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Script per passare l'ID della corsa all'iframe di Dash
+document.addEventListener('DOMContentLoaded', function() {
+    // Modifica l'URL dell'iframe per includere l'ID della corsa
+    const iframe = document.getElementById('dash-iframe');
+    const originalSrc = iframe.src;
+    
+    // Assicurati che l'URL contenga l'ID della corsa
+    if (!originalSrc.includes('race_id=')) {
+        iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'race_id={{ race.id }}';
+    }
+});
+</script>
+{% endblock %}

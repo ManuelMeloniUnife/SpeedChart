@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="jumbotron p-5 rounded">
+            <h1 class="display-4">Benvenuto in SpeedChart</h1>
+            <p class="lead">Il software di analisi per la tua carrera autopodistica</p>
+            <hr class="my-4">
+            <p>Carica i dati del computer di bordo e visualizza grafici dettagliati delle prestazioni.</p>
+            <a class="btn btn-primary btn-lg" href="{{ url_for('main.upload') }}" role="button">Carica Dati</a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3 mb-5">
+    <div class="col-md-12 text-center">
+        <a href="{{ url_for('main.compare') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-bar-chart-line"></i> Confronta Corse
+        </a>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <h2>Corse Recenti</h2>
+        {% if races %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Data</th>
+                            <th>Pilota</th>
+                            <th>Veicolo</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for race in races %}
+                            <tr>
+                                <td>{{ race.name }}</td>
+                                <td>{{ race.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ race.driver }}</td>
+                                <td>{{ race.vehicle }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.view_race', race_id=race.id) }}" class="btn btn-sm btn-primary">Visualizza</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Non ci sono ancora corse nel database. <a href="{{ url_for('main.upload') }}">Carica il tuo primo file</a> per iniziare!
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

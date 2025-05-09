@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Confronto: {{ race1.name }} vs {{ race2.name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>Confronto Corse</h2>
+        <div class="d-flex justify-content-between">
+            <div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white">
+                                Corsa 1
+                            </div>
+                            <div class="card-body">
+                                <h5>{{ race1.name }}</h5>
+                                <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                                <p><strong>Pilota:</strong> {{ race1.driver }}</p>
+                                <p><strong>Veicolo:</strong> {{ race1.vehicle }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">
+                                Corsa 2
+                            </div>
+                            <div class="card-body">
+                                <h5>{{ race2.name }}</h5>
+                                <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                                <p><strong>Pilota:</strong> {{ race2.driver }}</p>
+                                <p><strong>Veicolo:</strong> {{ race2.vehicle }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('main.compare') }}" class="btn btn-secondary">Torna alla selezione</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 dash-container">
+        <!-- Contenitore per la dashboard Dash di confronto -->
+        <iframe 
+            src="{{ url_for('dash.comparison_dash') }}?race1_id={{ race1.id }}&race2_id={{ race2.id }}" 
+            style="width:100%; height:900px; border:none;"
+            id="dash-iframe"
+        ></iframe>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Script per passare gli ID delle corse all'iframe di Dash
+document.addEventListener('DOMContentLoaded', function() {
+    // Modifica l'URL dell'iframe per includere gli ID delle corse
+    const iframe = document.getElementById('dash-iframe');
+    const originalSrc = iframe.src;
+    
+    // Assicurati che l'URL contenga gli ID delle corse
+    if (!originalSrc.includes('race1_id=')) {
+        iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'race1_id={{ race1.id }}&race2_id={{ race2.id }}';
+    }
+});
+</script>
+{% endblock %}

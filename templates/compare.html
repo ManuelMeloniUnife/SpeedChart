@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Confronta Corse{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Confronta Corse</h2>
+        <p>Seleziona due corse da confrontare per analizzare le differenze di prestazioni.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form id="compare-form">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label for="race1" class="form-label">Prima corsa</label>
+                                <select class="form-select" id="race1" name="race1" required>
+                                    <option value="">Seleziona una corsa</option>
+                                    {% for race in races %}
+                                        <option value="{{ race.id }}">{{ race.name }} - {{ race.date.strftime('%d/%m/%Y') }} - {{ race.driver }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2 d-flex align-items-center justify-content-center">
+                            <div class="mb-3">
+                                <span class="h4">vs</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label for="race2" class="form-label">Seconda corsa</label>
+                                <select class="form-select" id="race2" name="race2" required>
+                                    <option value="">Seleziona una corsa</option>
+                                    {% for race in races %}
+                                        <option value="{{ race.id }}">{{ race.name }} - {{ race.date.strftime('%d/%m/%Y') }} - {{ race.driver }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button type="button" id="compare-button" class="btn btn-primary">Confronta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Confronti recenti
+            </div>
+            <div class="card-body">
+                <p class="card-text">Seleziona due corse dal form sopra per visualizzare un confronto dettagliato.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const compareButton = document.getElementById('compare-button');
+    const race1Select = document.getElementById('race1');
+    const race2Select = document.getElementById('race2');
+    
+    compareButton.addEventListener('click', function() {
+        const race1Id = race1Select.value;
+        const race2Id = race2Select.value;
+        
+        if (race1Id && race2Id) {
+            if (race1Id === race2Id) {
+                alert('Seleziona due corse diverse per confrontarle.');
+                return;
+            }
+            
+            // Reindirizza alla pagina di confronto
+            window.location.href = `/view_comparison/${race1Id}/${race2Id}`;
+        } else {
+            alert('Seleziona due corse da confrontare.');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,4 +1,3 @@
-<!-- templates/visualizza_dati.html -->
 {% extends "base.html" %}
 
 {% block title %}SpeedChart - Visualizza Dati{% endblock %}
@@ -88,73 +87,117 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('main.view_race', race_id=race.id) }}" class="btn btn-sm btn-primary">
-                                <i class="bi bi-graph-up"></i> Visualizza
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center">
-                            Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('main.view_race', race_id=race.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-graph-up"></i> Visualizza
+                                </a>
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#eliminaCorsa" 
+                                        data-id="{{ race.id }}" 
+                                        data-nome="{{ race.name }}">
+                                    <i class="bi bi-trash"></i> Elimina
+                               </button>
+                           </div>
+                       </td>
+                   </tr>
+                   {% else %}
+                   <tr>
+                       <td colspan="6" class="text-center">
+                           Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
+                       </td>
+                   </tr>
+                   {% endfor %}
+               </tbody>
+           </table>
+       </div>
+   </div>
+</div>
+
+<!-- Modal Elimina Corsa -->
+<div class="modal fade" id="eliminaCorsa" tabindex="-1" aria-labelledby="eliminaCorsaLabel" aria-hidden="true">
+   <div class="modal-dialog">
+       <div class="modal-content">
+           <div class="modal-header">
+               <h5 class="modal-title" id="eliminaCorsaLabel">Conferma eliminazione</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+           </div>
+           <form method="POST" action="{{ url_for('main.elimina_corsa') }}">
+               <input type="hidden" id="elimina_corsa_id" name="id">
+               <div class="modal-body">
+                   <p>Sei sicuro di voler eliminare la prova <strong id="elimina_corsa_nome"></strong>?</p>
+                   <p class="text-danger">Questa azione non può essere annullata e verranno eliminati tutti i dati associati.</p>
+               </div>
+               <div class="modal-footer">
+                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                   <button type="submit" class="btn btn-danger">Elimina</button>
+               </div>
+           </form>
+       </div>
+   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('searchInput');
-        const pilotaFilter = document.getElementById('pilotaFilter');
-        const dataFilter = document.getElementById('dataFilter');
-        const resetFiltersBtn = document.getElementById('resetFilters');
-        const tableRows = document.querySelectorAll('#corseDatiTable tbody tr[data-name]');
-        
-        // Funzione per filtrare la tabella
-        function filterTable() {
-            const searchText = searchInput.value.toLowerCase();
-            const pilotaId = pilotaFilter.value;
-            const dataValue = dataFilter.value;
-            
-            tableRows.forEach(row => {
-                const name = row.getAttribute('data-name');
-                const pilota = row.getAttribute('data-pilota');
-                const rowPilotaId = row.getAttribute('data-pilota-id');
-                const date = row.getAttribute('data-date');
-                
-                const matchSearch = name.includes(searchText) || pilota.includes(searchText);
-                const matchPilota = !pilotaId || rowPilotaId === pilotaId;
-                const matchDate = !dataValue || date === dataValue;
-                
-                if (matchSearch && matchPilota && matchDate) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-        
-        // Eventi per filtri
-        searchInput.addEventListener('input', filterTable);
-        pilotaFilter.addEventListener('change', filterTable);
-        dataFilter.addEventListener('change', filterTable);
-        
-        // Reset filtri
-        resetFiltersBtn.addEventListener('click', function() {
-            searchInput.value = '';
-            pilotaFilter.value = '';
-            dataFilter.value = '';
-            
-            tableRows.forEach(row => {
-                row.style.display = '';
-            });
-        });
-    });
+   document.addEventListener('DOMContentLoaded', function() {
+       const searchInput = document.getElementById('searchInput');
+       const pilotaFilter = document.getElementById('pilotaFilter');
+       const dataFilter = document.getElementById('dataFilter');
+       const resetFiltersBtn = document.getElementById('resetFilters');
+       const tableRows = document.querySelectorAll('#corseDatiTable tbody tr[data-name]');
+       
+       // Funzione per filtrare la tabella
+       function filterTable() {
+           const searchText = searchInput.value.toLowerCase();
+           const pilotaId = pilotaFilter.value;
+           const dataValue = dataFilter.value;
+           
+           tableRows.forEach(row => {
+               const name = row.getAttribute('data-name');
+               const pilota = row.getAttribute('data-pilota');
+               const rowPilotaId = row.getAttribute('data-pilota-id');
+               const date = row.getAttribute('data-date');
+               
+               const matchSearch = name.includes(searchText) || pilota.includes(searchText);
+               const matchPilota = !pilotaId || rowPilotaId === pilotaId;
+               const matchDate = !dataValue || date === dataValue;
+               
+               if (matchSearch && matchPilota && matchDate) {
+                   row.style.display = '';
+               } else {
+                   row.style.display = 'none';
+               }
+           });
+       }
+       
+       // Eventi per filtri
+       searchInput.addEventListener('input', filterTable);
+       pilotaFilter.addEventListener('change', filterTable);
+       dataFilter.addEventListener('change', filterTable);
+       
+       // Reset filtri
+       resetFiltersBtn.addEventListener('click', function() {
+           searchInput.value = '';
+           pilotaFilter.value = '';
+           dataFilter.value = '';
+           
+           tableRows.forEach(row => {
+               row.style.display = '';
+           });
+       });
+       
+       // Setup per il modal di eliminazione
+       const eliminaCorsaModal = document.getElementById('eliminaCorsa');
+       eliminaCorsaModal.addEventListener('show.bs.modal', function (event) {
+           const button = event.relatedTarget;
+           const id = button.getAttribute('data-id');
+           const nome = button.getAttribute('data-nome');
+           
+           const modalIdInput = eliminaCorsaModal.querySelector('#elimina_corsa_id');
+           const modalNomeSpan = eliminaCorsaModal.querySelector('#elimina_corsa_nome');
+           
+           modalIdInput.value = id;
+           modalNomeSpan.textContent = nome;
+       });
+   });
 </script>
 {% endblock %}

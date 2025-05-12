@@ -1,4 +1,3 @@
-<!-- templates/gestione_team.html -->
 {% extends "base.html" %}
 
 {% block title %}SpeedChart - Gestione Team{% endblock %}
@@ -43,9 +42,9 @@
                         <td>{{ spingitore.ruolo or "" }}</td>
                         <td>
                             {% if spingitore.attivo %}
-                            <span class="badge bg-success">Attivo</span>
+                            <span class="badge bg-success">Schierato</span>
                             {% else %}
-                            <span class="badge bg-danger">Disattivato</span>
+                            <span class="badge bg-warning">A Riposo</span>
                             {% endif %}
                         </td>
                         <td>
@@ -57,6 +56,15 @@
                                 data-attivo="{{ '1' if spingitore.attivo else '0' }}">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            
+                            <!-- Pulsante per cambiare stato "Schierato"/"A Riposo" -->
+                            <button class="btn btn-sm {% if spingitore.attivo %}btn-outline-warning{% else %}btn-outline-success{% endif %}" data-bs-toggle="modal" data-bs-target="#cambiaStatoModal" 
+                                data-id="{{ spingitore.id }}" 
+                                data-nome="{{ spingitore.nome_completo() }}"
+                                data-attivo="{{ '1' if spingitore.attivo else '0' }}">
+                                <i class="bi {% if spingitore.attivo %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                            </button>
+                            
                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminaSpingitoreModal" data-id="{{ spingitore.id }}" data-nome="{{ spingitore.nome_completo() }}">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -133,7 +141,7 @@
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="modifica_attivo" name="attivo" value="1">
-                            <label class="form-check-label" for="modifica_attivo">Attivo</label>
+                            <label class="form-check-label" for="modifica_attivo">Schierato</label>
                         </div>
                     </div>
                 </div>
@@ -158,11 +166,35 @@
                 <input type="hidden" id="elimina_id" name="id">
                 <div class="modal-body">
                     <p>Sei sicuro di voler eliminare lo spingitore <strong id="elimina_nome"></strong>?</p>
-                    <p class="text-danger">Questa azione non può essere annullata.</p>
+                    <p class="text-danger">Questa azione non può essere annullata. Verranno eliminate anche tutte le prove associate a questo spingitore.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
                     <button type="submit" class="btn btn-danger">Elimina</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cambio Stato Spingitore -->
+<div class="modal fade" id="cambiaStatoModal" tabindex="-1" aria-labelledby="cambiaStatoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cambiaStatoModalLabel">Cambio Stato Spingitore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.cambia_stato_spingitore') }}">
+                <input type="hidden" id="stato_id" name="id">
+                <input type="hidden" id="stato_attivo" name="attivo">
+                <div class="modal-body">
+                    <p>Sei sicuro di voler cambiare lo stato dello spingitore <strong id="stato_nome"></strong>?</p>
+                    <p id="stato_messaggio"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary" id="btn_conferma_stato">Conferma</button>
                 </div>
             </form>
         </div>
@@ -208,6 +240,40 @@
             
             modalIdInput.value = id;
             modalNomeSpan.textContent = nome;
+        });
+        
+        // Setup per il modal di cambio stato
+        const cambiaStatoModal = document.getElementById('cambiaStatoModal');
+        cambiaStatoModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+            const nome = button.getAttribute('data-nome');
+            const attivo = button.getAttribute('data-attivo') === '1';
+            
+            const modalIdInput = cambiaStatoModal.querySelector('#stato_id');
+            const modalAttivoInput = cambiaStatoModal.querySelector('#stato_attivo');
+            const modalNomeSpan = cambiaStatoModal.querySelector('#stato_nome');
+            const modalMessaggio = cambiaStatoModal.querySelector('#stato_messaggio');
+            const confermaBtn = cambiaStatoModal.querySelector('#btn_conferma_stato');
+            
+            modalIdInput.value = id;
+            modalNomeSpan.textContent = nome;
+            
+            if (attivo) {
+                // Da "Schierato" a "A Riposo"
+                modalAttivoInput.value = '0';
+                modalMessaggio.textContent = "Lo spingitore passerà da \"Schierato\" a \"A Riposo\".";
+                confermaBtn.classList.remove('btn-success');
+                confermaBtn.classList.add('btn-warning');
+                confermaBtn.textContent = 'Metti a Riposo';
+            } else {
+                // Da "A Riposo" a "Schierato"
+                modalAttivoInput.value = '1';
+                modalMessaggio.textContent = "Lo spingitore passerà da \"A Riposo\" a \"Schierato\".";
+                confermaBtn.classList.remove('btn-warning');
+                confermaBtn.classList.add('btn-success');
+                confermaBtn.textContent = 'Schiera';
+            }
         });
     });
 </script>

@@ -9,8 +9,7 @@
         <div class="d-flex justify-content-between">
             <div>
                 <p><strong>Data:</strong> {{ race.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                <p><strong>Pilota:</strong> {{ race.driver }}</p>
-                <p><strong>Veicolo:</strong> {{ race.vehicle }}</p>
+                <p><strong>Pilota:</strong> {{ race.spingitore.nome_completo() if race.spingitore else 'N/A' }}</p>
             </div>
             <div>
                 <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Torna alla lista</a>
@@ -21,7 +20,7 @@
 
 <div class="row">
     <div class="col-md-12 dash-container">
-        <!-- Modifica qui: Usa l'URL diretto al posto di url_for -->
+        <!-- Contenitore per la dashboard Dash -->
         <iframe 
             src="/dash/?race_id={{ race.id }}" 
             style="width:100%; height:800px; border:none;"

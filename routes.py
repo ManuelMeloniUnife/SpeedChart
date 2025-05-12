@@ -179,9 +179,33 @@ def modifica_spingitore():
     flash(f'Spingitore {nome} {cognome} aggiornato con successo!', 'success')
     return redirect(url_for('main.gestione_team'))
 
+@main.route('/cambia-stato-spingitore', methods=['POST'])
+def cambia_stato_spingitore():
+    """Cambia lo stato di uno spingitore tra Schierato e A Riposo"""
+    spingitore_id = request.form.get('id')
+    nuovo_stato = request.form.get('attivo') == '1'
+    
+    if not spingitore_id:
+        flash('ID spingitore obbligatorio', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Trova lo spingitore
+    spingitore = Spingitore.query.get(spingitore_id)
+    if not spingitore:
+        flash('Spingitore non trovato', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Aggiorna lo stato
+    spingitore.attivo = nuovo_stato
+    db.session.commit()
+    
+    stato_str = "Schierato" if nuovo_stato else "A Riposo"
+    flash(f'Lo spingitore {spingitore.nome_completo()} è ora {stato_str}.', 'success')
+    return redirect(url_for('main.gestione_team'))
+
 @main.route('/elimina-spingitore', methods=['POST'])
 def elimina_spingitore():
-    """Elimina un spingitore dal team"""
+    """Elimina un spingitore dal team e tutte le corse associate"""
     spingitore_id = request.form.get('id')
     
     if not spingitore_id:
@@ -194,20 +218,50 @@ def elimina_spingitore():
         flash('Spingitore non trovato', 'danger')
         return redirect(url_for('main.gestione_team'))
     
-    # Controlla se lo spingitore è associato a corse
-    corse_associate = Race.query.filter_by(spingitore_id=spingitore_id).count()
-    if corse_associate > 0:
-        # Invece di eliminare, disattiva lo spingitore
-        spingitore.attivo = False
-        db.session.commit()
-        flash(f'Lo spingitore {spingitore.nome_completo()} ha {corse_associate} corse associate e non può essere eliminato. È stato disattivato.', 'warning')
+    # Trova le corse associate
+    corse_associate = Race.query.filter_by(spingitore_id=spingitore_id).all()
+    num_corse = len(corse_associate)
+    
+    # Elimina tutte le corse associate e i loro data points
+    for corsa in corse_associate:
+        db.session.delete(corsa)
+    
+    # Elimina lo spingitore
+    db.session.delete(spingitore)
+    db.session.commit()
+    
+    # Messaggio di conferma
+    if num_corse > 0:
+        flash(f'Spingitore {spingitore.nome_completo()} e {num_corse} prove associate eliminate con successo!', 'success')
     else:
-        # Elimina lo spingitore
-        db.session.delete(spingitore)
-        db.session.commit()
         flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo!', 'success')
     
     return redirect(url_for('main.gestione_team'))
+
+@main.route('/elimina-corsa', methods=['POST'])
+def elimina_corsa():
+    """Elimina una corsa e tutti i dati associati"""
+    race_id = request.form.get('id')
+    
+    if not race_id:
+        flash('ID corsa obbligatorio', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Trova la corsa
+    race = Race.query.get(race_id)
+    if not race:
+        flash('Corsa non trovata', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Memorizza il nome per il messaggio
+    race_name = race.name
+    
+    # Elimina la corsa (i data_points saranno eliminati automaticamente grazie a cascade="all, delete-orphan")
+    db.session.delete(race)
+    db.session.commit()
+    
+    flash(f'Prova "{race_name}" eliminata con successo.', 'success')
+    return redirect(url_for('main.visualizza_dati'))
 
 @main.route('/api/races')
 def get_races():

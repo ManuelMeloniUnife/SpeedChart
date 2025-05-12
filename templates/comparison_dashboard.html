@@ -17,8 +17,7 @@
                             <div class="card-body">
                                 <h5>{{ race1.name }}</h5>
                                 <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                                <p><strong>Pilota:</strong> {{ race1.driver }}</p>
-                                <p><strong>Veicolo:</strong> {{ race1.vehicle }}</p>
+                                <p><strong>Pilota:</strong> {{ race1.spingitore.nome_completo() if race1.spingitore else 'N/A' }}</p>
                             </div>
                         </div>
                     </div>
@@ -30,8 +29,7 @@
                             <div class="card-body">
                                 <h5>{{ race2.name }}</h5>
                                 <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                                <p><strong>Pilota:</strong> {{ race2.driver }}</p>
-                                <p><strong>Veicolo:</strong> {{ race2.vehicle }}</p>
+                                <p><strong>Pilota:</strong> {{ race2.spingitore.nome_completo() if race2.spingitore else 'N/A' }}</p>
                             </div>
                         </div>
                     </div>
@@ -46,7 +44,7 @@
 
 <div class="row">
     <div class="col-md-12 dash-container">
-        <!-- Usa l'URL diretto anche qui -->
+        <!-- Contenitore per la dashboard Dash di confronto -->
         <iframe 
             src="/comparison/?race1_id={{ race1.id }}&race2_id={{ race2.id }}" 
             style="width:100%; height:900px; border:none;"

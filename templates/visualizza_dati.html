@@ -1,0 +1,160 @@
+<!-- templates/visualizza_dati.html -->
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Visualizza Dati{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>Visualizza Dati</h2>
+        <p>Esplora e analizza le corse registrate.</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{{ url_for('main.compare') }}" class="btn btn-primary">
+            <i class="bi bi-bar-chart-line"></i> Confronta Corse
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Cerca per nome prova o pilota...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="pilotaFilter">
+                    <option value="">Tutti i piloti</option>
+                    {% for spingitore in spingitori %}
+                        <option value="{{ spingitore.id }}">{{ spingitore.nome_completo() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="month" class="form-select" id="dataFilter" placeholder="Filtra per data">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-secondary w-100" id="resetFilters">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="corseDatiTable">
+                <thead>
+                    <tr>
+                        <th>Nome Prova</th>
+                        <th>Data</th>
+                        <th>Pilota</th>
+                        <th>Distanza</th>
+                        <th>Note</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for race in races %}
+                    <tr 
+                        data-name="{{ race.name.lower() }}" 
+                        data-pilota="{{ race.spingitore.nome_completo().lower() if race.spingitore else '' }}"
+                        data-pilota-id="{{ race.spingitore_id if race.spingitore_id else '' }}"
+                        data-date="{{ race.date.strftime('%Y-%m') }}"
+                    >
+                        <td>{{ race.name }}</td>
+                        <td>{{ race.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ race.spingitore.nome_completo() if race.spingitore else 'N/A' }}</td>
+                        <td>
+                            {% set last_point = race.data_points|sort(attribute='distance')|last %}
+                            {% if last_point %}
+                                {{ "%.2f"|format(last_point.distance) }} m
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if race.notes %}
+                                <span class="text-truncate d-inline-block" style="max-width: 200px;">{{ race.notes }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('main.view_race', race_id=race.id) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-graph-up"></i> Visualizza
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const pilotaFilter = document.getElementById('pilotaFilter');
+        const dataFilter = document.getElementById('dataFilter');
+        const resetFiltersBtn = document.getElementById('resetFilters');
+        const tableRows = document.querySelectorAll('#corseDatiTable tbody tr[data-name]');
+        
+        // Funzione per filtrare la tabella
+        function filterTable() {
+            const searchText = searchInput.value.toLowerCase();
+            const pilotaId = pilotaFilter.value;
+            const dataValue = dataFilter.value;
+            
+            tableRows.forEach(row => {
+                const name = row.getAttribute('data-name');
+                const pilota = row.getAttribute('data-pilota');
+                const rowPilotaId = row.getAttribute('data-pilota-id');
+                const date = row.getAttribute('data-date');
+                
+                const matchSearch = name.includes(searchText) || pilota.includes(searchText);
+                const matchPilota = !pilotaId || rowPilotaId === pilotaId;
+                const matchDate = !dataValue || date === dataValue;
+                
+                if (matchSearch && matchPilota && matchDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // Eventi per filtri
+        searchInput.addEventListener('input', filterTable);
+        pilotaFilter.addEventListener('change', filterTable);
+        dataFilter.addEventListener('change', filterTable);
+        
+        // Reset filtri
+        resetFiltersBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            pilotaFilter.value = '';
+            dataFilter.value = '';
+            
+            tableRows.forEach(row => {
+                row.style.display = '';
+            });
+        });
+    });
+</script>
+{% endblock %}

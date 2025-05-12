@@ -30,6 +30,7 @@ def create_app():
     
     # Crea la cartella data se non esiste
     os.makedirs('data', exist_ok=True)
+    os.makedirs('static/img', exist_ok=True)
     
     # Inizializza le dashboard Dash
     init_dashboard(app)

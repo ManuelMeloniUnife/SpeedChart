@@ -1,3 +1,4 @@
+<!-- templates/upload.html (aggiornato) -->
 {% extends "base.html" %}
 
 {% block title %}SpeedChart - Carica Dati{% endblock %}
@@ -22,18 +23,28 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="race_name" class="form-label">Nome della corsa</label>
+                        <label for="race_name" class="form-label">Nome della prova</label>
                         <input type="text" class="form-control" id="race_name" name="race_name" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="driver" class="form-label">Pilota</label>
-                        <input type="text" class="form-control" id="driver" name="driver">
+                        <label for="date" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="date" name="date" required value="{{ today }}">
                     </div>
                     
                     <div class="mb-3">
-                        <label for="vehicle" class="form-label">Veicolo</label>
-                        <input type="text" class="form-control" id="vehicle" name="vehicle">
+                        <label for="spingitore_id" class="form-label">Pilota</label>
+                        <select class="form-select" id="spingitore_id" name="spingitore_id" required>
+                            <option value="">Seleziona un pilota</option>
+                            {% for spingitore in spingitori_attivi %}
+                                <option value="{{ spingitore.id }}">{{ spingitore.nome_completo() }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not spingitori_attivi %}
+                            <div class="form-text text-warning">
+                                Non sono presenti spingitori attivi. <a href="{{ url_for('main.gestione_team') }}">Aggiungi uno spingitore</a> prima di caricare dati.
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
@@ -41,7 +52,7 @@
                         <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Carica e analizza</button>
+                    <button type="submit" class="btn btn-primary" {% if not spingitori_attivi %}disabled{% endif %}>Carica e analizza</button>
                 </form>
             </div>
         </div>

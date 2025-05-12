@@ -1,18 +1,25 @@
+# routes.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Race, DataPoint
+from models import db, Race, DataPoint, Spingitore
 from utils.file_parser import parse_race_file
-from datetime import datetime
+from datetime import datetime, date
+from sqlalchemy import desc
 
 main = Blueprint('main', __name__)
 
 @main.route('/')
 def index():
-    # Mostra la pagina principale con le corse recenti
-    races = Race.query.order_by(Race.date.desc()).limit(10).all()
-    return render_template('index.html', races=races)
+    # Reindirizza alla visualizzazione dati
+    return redirect(url_for('main.visualizza_dati'))
 
 @main.route('/upload', methods=['GET', 'POST'])
 def upload():
+    # Ottieni gli spingitori attivi per il form
+    spingitori_attivi = Spingitore.query.filter_by(attivo=True).order_by(Spingitore.nome).all()
+    
+    # Data odierna per il campo data
+    today = date.today().strftime('%Y-%m-%d')
+    
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('Nessun file caricato', 'danger')
@@ -29,27 +36,33 @@ def upload():
             file_content = file.read().decode('utf-8')
             
             # Ottieni i dati dal form
-            race_name = request.form.get('race_name', file.filename)
-            driver = request.form.get('driver', '')
-            vehicle = request.form.get('vehicle', '')
+            race_name = request.form.get('race_name', '')
+            spingitore_id = request.form.get('spingitore_id', '')
+            race_date = request.form.get('date', '')
             notes = request.form.get('notes', '')
+            
+            if not race_name or not spingitore_id:
+                flash('Nome della prova e pilota sono obbligatori', 'danger')
+                return redirect(request.url)
             
             # Parsa il file
             try:
                 parsed_data = parse_race_file(file_content)
                 
+                # Converte la data dal form in datetime
+                try:
+                    race_date = datetime.strptime(race_date, '%Y-%m-%d')
+                except:
+                    race_date = datetime.now()
+                
                 # Crea una nuova corsa
                 race = Race(
                     name=race_name,
-                    driver=driver,
-                    vehicle=vehicle,
+                    date=race_date,
+                    spingitore_id=spingitore_id,
                     notes=notes,
                     wheel_circumference=parsed_data['header_info'].get('wheel_circumference', 1.52)
                 )
-                
-                # Se è stata trovata una data nel file, usala
-                if 'datetime' in parsed_data['header_info']:
-                    race.date = parsed_data['header_info']['datetime']
                 
                 db.session.add(race)
                 db.session.flush()  # Per ottenere l'ID della corsa
@@ -66,7 +79,7 @@ def upload():
                     db.session.add(data_point)
                 
                 db.session.commit()
-                flash(f'Corsa "{race_name}" caricata con successo!', 'success')
+                flash(f'Prova "{race_name}" caricata con successo!', 'success')
                 return redirect(url_for('main.view_race', race_id=race.id))
                 
             except Exception as e:
@@ -76,7 +89,15 @@ def upload():
             flash('File non supportato. Carica un file .txt', 'danger')
             return redirect(request.url)
     
-    return render_template('upload.html')
+    return render_template('upload.html', 
+                          spingitori_attivi=spingitori_attivi, 
+                          today=today)
+
+@main.route('/visualizza-dati')
+def visualizza_dati():
+    races = Race.query.order_by(Race.date.desc()).all()
+    spingitori = Spingitore.query.order_by(Spingitore.nome).all()
+    return render_template('visualizza_dati.html', races=races, spingitori=spingitori)
 
 @main.route('/race/<int:race_id>')
 def view_race(race_id):
@@ -87,7 +108,8 @@ def view_race(race_id):
 def compare():
     """Pagina per confrontare due corse"""
     races = Race.query.order_by(Race.date.desc()).all()
-    return render_template('compare.html', races=races)
+    spingitori = Spingitore.query.order_by(Spingitore.nome).all()
+    return render_template('compare.html', races=races, spingitori=spingitori)
 
 @main.route('/view_comparison/<int:race1_id>/<int:race2_id>')
 def view_comparison(race1_id, race2_id):
@@ -95,6 +117,97 @@ def view_comparison(race1_id, race2_id):
     race1 = Race.query.get_or_404(race1_id)
     race2 = Race.query.get_or_404(race2_id)
     return render_template('comparison_dashboard.html', race1=race1, race2=race2)
+
+@main.route('/gestione-team')
+def gestione_team():
+    """Pagina per la gestione degli spingitori del team"""
+    spingitori = Spingitore.query.order_by(Spingitore.nome).all()
+    return render_template('gestione_team.html', spingitori=spingitori)
+
+@main.route('/aggiungi-spingitore', methods=['POST'])
+def aggiungi_spingitore():
+    """Aggiunge un nuovo spingitore al team"""
+    nome = request.form.get('nome', '').strip()
+    cognome = request.form.get('cognome', '').strip()
+    ruolo = request.form.get('ruolo', '').strip()
+    
+    if not nome:
+        flash('Il nome è obbligatorio', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Crea un nuovo spingitore
+    spingitore = Spingitore(
+        nome=nome,
+        cognome=cognome,
+        ruolo=ruolo,
+        attivo=True
+    )
+    
+    db.session.add(spingitore)
+    db.session.commit()
+    
+    flash(f'Spingitore {nome} {cognome} aggiunto con successo!', 'success')
+    return redirect(url_for('main.gestione_team'))
+
+@main.route('/modifica-spingitore', methods=['POST'])
+def modifica_spingitore():
+    """Modifica un spingitore esistente"""
+    spingitore_id = request.form.get('id')
+    nome = request.form.get('nome', '').strip()
+    cognome = request.form.get('cognome', '').strip()
+    ruolo = request.form.get('ruolo', '').strip()
+    attivo = 'attivo' in request.form
+    
+    if not spingitore_id or not nome:
+        flash('ID spingitore e nome sono obbligatori', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Trova lo spingitore
+    spingitore = Spingitore.query.get(spingitore_id)
+    if not spingitore:
+        flash('Spingitore non trovato', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Aggiorna i dati
+    spingitore.nome = nome
+    spingitore.cognome = cognome
+    spingitore.ruolo = ruolo
+    spingitore.attivo = attivo
+    
+    db.session.commit()
+    
+    flash(f'Spingitore {nome} {cognome} aggiornato con successo!', 'success')
+    return redirect(url_for('main.gestione_team'))
+
+@main.route('/elimina-spingitore', methods=['POST'])
+def elimina_spingitore():
+    """Elimina un spingitore dal team"""
+    spingitore_id = request.form.get('id')
+    
+    if not spingitore_id:
+        flash('ID spingitore obbligatorio', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Trova lo spingitore
+    spingitore = Spingitore.query.get(spingitore_id)
+    if not spingitore:
+        flash('Spingitore non trovato', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    # Controlla se lo spingitore è associato a corse
+    corse_associate = Race.query.filter_by(spingitore_id=spingitore_id).count()
+    if corse_associate > 0:
+        # Invece di eliminare, disattiva lo spingitore
+        spingitore.attivo = False
+        db.session.commit()
+        flash(f'Lo spingitore {spingitore.nome_completo()} ha {corse_associate} corse associate e non può essere eliminato. È stato disattivato.', 'warning')
+    else:
+        # Elimina lo spingitore
+        db.session.delete(spingitore)
+        db.session.commit()
+        flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo!', 'success')
+    
+    return redirect(url_for('main.gestione_team'))
 
 @main.route('/api/races')
 def get_races():
@@ -104,11 +217,25 @@ def get_races():
             'id': race.id,
             'name': race.name,
             'date': race.date.strftime('%d/%m/%Y %H:%M'),
-            'driver': race.driver,
-            'vehicle': race.vehicle
+            'pilota': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+            'notes': race.notes
         } for race in races
     ]
     return jsonify(races_list)
+
+@main.route('/api/spingitori')
+def get_spingitori():
+    spingitori = Spingitore.query.filter_by(attivo=True).order_by(Spingitore.nome).all()
+    spingitori_list = [
+        {
+            'id': spingitore.id,
+            'nome': spingitore.nome,
+            'cognome': spingitore.cognome,
+            'ruolo': spingitore.ruolo,
+            'nome_completo': spingitore.nome_completo()
+        } for spingitore in spingitori
+    ]
+    return jsonify(spingitori_list)
 
 @main.route('/api/race/<int:race_id>/data')
 def get_race_data(race_id):
@@ -120,8 +247,7 @@ def get_race_data(race_id):
             'id': race.id,
             'name': race.name,
             'date': race.date.strftime('%d/%m/%Y %H:%M'),
-            'driver': race.driver,
-            'vehicle': race.vehicle,
+            'pilota': race.spingitore.nome_completo() if race.spingitore else 'N/A',
             'notes': race.notes
         },
         'data_points': [

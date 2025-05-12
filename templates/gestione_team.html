@@ -1,0 +1,214 @@
+<!-- templates/gestione_team.html -->
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Gestione Team{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>Gestione Team</h2>
+        <p>Gestisci il roster degli spingitori del tuo team.</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">
+            <i class="bi bi-person-plus-fill"></i> Aggiungi Spingitore
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th width="5%"></th>
+                        <th>Nome</th>
+                        <th>Cognome</th>
+                        <th>Ruolo</th>
+                        <th>Status</th>
+                        <th width="15%">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for spingitore in spingitori %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center bg-primary rounded-circle text-white" style="width: 36px; height: 36px;">
+                                {{ spingitore.nome[0] }}{{ spingitore.cognome[0] if spingitore.cognome else "" }}
+                            </div>
+                        </td>
+                        <td>{{ spingitore.nome }}</td>
+                        <td>{{ spingitore.cognome or "" }}</td>
+                        <td>{{ spingitore.ruolo or "" }}</td>
+                        <td>
+                            {% if spingitore.attivo %}
+                            <span class="badge bg-success">Attivo</span>
+                            {% else %}
+                            <span class="badge bg-danger">Disattivato</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modificaSpingitoreModal" 
+                                data-id="{{ spingitore.id }}" 
+                                data-nome="{{ spingitore.nome }}" 
+                                data-cognome="{{ spingitore.cognome or '' }}" 
+                                data-ruolo="{{ spingitore.ruolo or '' }}"
+                                data-attivo="{{ '1' if spingitore.attivo else '0' }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminaSpingitoreModal" data-id="{{ spingitore.id }}" data-nome="{{ spingitore.nome_completo() }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nessuno spingitore presente. <a href="#" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">Aggiungi il primo spingitore</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aggiungi Spingitore -->
+<div class="modal fade" id="aggiungiSpingitoreModal" tabindex="-1" aria-labelledby="aggiungiSpingitoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aggiungiSpingitoreModalLabel">Aggiungi Spingitore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.aggiungi_spingitore') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cognome" class="form-label">Cognome</label>
+                        <input type="text" class="form-control" id="cognome" name="cognome">
+                    </div>
+                    <div class="mb-3">
+                        <label for="ruolo" class="form-label">Ruolo</label>
+                        <input type="text" class="form-control" id="ruolo" name="ruolo">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Spingitore -->
+<div class="modal fade" id="modificaSpingitoreModal" tabindex="-1" aria-labelledby="modificaSpingitoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modificaSpingitoreModalLabel">Modifica Spingitore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.modifica_spingitore') }}">
+                <input type="hidden" id="modifica_id" name="id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modifica_nome" class="form-label">Nome <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="modifica_nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modifica_cognome" class="form-label">Cognome</label>
+                        <input type="text" class="form-control" id="modifica_cognome" name="cognome">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modifica_ruolo" class="form-label">Ruolo</label>
+                        <input type="text" class="form-control" id="modifica_ruolo" name="ruolo">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="modifica_attivo" name="attivo" value="1">
+                            <label class="form-check-label" for="modifica_attivo">Attivo</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Elimina Spingitore -->
+<div class="modal fade" id="eliminaSpingitoreModal" tabindex="-1" aria-labelledby="eliminaSpingitoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminaSpingitoreModalLabel">Conferma eliminazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.elimina_spingitore') }}">
+                <input type="hidden" id="elimina_id" name="id">
+                <div class="modal-body">
+                    <p>Sei sicuro di voler eliminare lo spingitore <strong id="elimina_nome"></strong>?</p>
+                    <p class="text-danger">Questa azione non può essere annullata.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-danger">Elimina</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup per il modal di modifica
+        const modificaModal = document.getElementById('modificaSpingitoreModal');
+        modificaModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+            const nome = button.getAttribute('data-nome');
+            const cognome = button.getAttribute('data-cognome');
+            const ruolo = button.getAttribute('data-ruolo');
+            const attivo = button.getAttribute('data-attivo') === '1';
+            
+            const modalIdInput = modificaModal.querySelector('#modifica_id');
+            const modalNomeInput = modificaModal.querySelector('#modifica_nome');
+            const modalCognomeInput = modificaModal.querySelector('#modifica_cognome');
+            const modalRuoloInput = modificaModal.querySelector('#modifica_ruolo');
+            const modalAttivoInput = modificaModal.querySelector('#modifica_attivo');
+            
+            modalIdInput.value = id;
+            modalNomeInput.value = nome;
+            modalCognomeInput.value = cognome;
+            modalRuoloInput.value = ruolo;
+            modalAttivoInput.checked = attivo;
+        });
+        
+        // Setup per il modal di eliminazione
+        const eliminaModal = document.getElementById('eliminaSpingitoreModal');
+        eliminaModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+            const nome = button.getAttribute('data-nome');
+            
+            const modalIdInput = eliminaModal.querySelector('#elimina_id');
+            const modalNomeSpan = eliminaModal.querySelector('#elimina_nome');
+            
+            modalIdInput.value = id;
+            modalNomeSpan.textContent = nome;
+        });
+    });
+</script>
+{% endblock %}

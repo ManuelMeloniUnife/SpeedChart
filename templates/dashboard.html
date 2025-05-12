@@ -19,12 +19,14 @@
 </div>
 
 <div class="row">
-    <div class="col-md-12 dash-container">
-        <!-- Contenitore per la dashboard Dash -->
+    <div class="col-md-12">
+        <!-- Contenitore per la dashboard Dash - con URL modificato -->
         <iframe 
             src="/dash/?race_id={{ race.id }}" 
-            style="width:100%; height:800px; border:none;"
+            style="width:100%; height:800px; border:none; overflow:hidden;" 
             id="dash-iframe"
+            scrolling="no"
+            frameborder="0"
         ></iframe>
     </div>
 </div>
@@ -47,16 +49,23 @@
 
 {% block scripts %}
 <script>
-// Script per passare l'ID della corsa all'iframe di Dash
+// Non modificare l'URL nell'iframe - lascia che sia caricato direttamente
 document.addEventListener('DOMContentLoaded', function() {
-    // Modifica l'URL dell'iframe per includere l'ID della corsa
-    const iframe = document.getElementById('dash-iframe');
-    const originalSrc = iframe.src;
-    
-    // Assicurati che l'URL contenga l'ID della corsa
-    if (!originalSrc.includes('race_id=')) {
-        iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'race_id={{ race.id }}';
+    // Regola l'altezza dell'iframe in base al contenuto
+    function resizeIframe() {
+        try {
+            const iframe = document.getElementById('dash-iframe');
+            // Usa un'altezza minima garantita
+            iframe.style.height = '800px';
+            iframe.style.minHeight = '800px';
+        } catch(e) {
+            console.error('Error resizing iframe:', e);
+        }
     }
+    
+    // Inizializza e imposta un intervallo per il ridimensionamento
+    resizeIframe();
+    window.addEventListener('resize', resizeIframe);
 });
 </script>
 {% endblock %}

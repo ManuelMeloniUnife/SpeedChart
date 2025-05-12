@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Confronto: {{ race1.name }} vs {{ race2.name }}{% endblock %}
+
+{% block styles %}
+<style>
+    .data-table {
+        height: 29vh;
+        overflow-y: auto;
+    }
+    .table-row-1.active {
+        background-color: #007bff20 !important;
+    }
+    .table-row-2.active {
+        background-color: #28a74520 !important;
+    }
+    #comparison-chart {
+        height: 60vh;
+    }
+    #selected-point1-details, #selected-point2-details {
+        min-height: 100px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>Confronto Corse</h2>
+        <div class="d-flex justify-content-between">
+            <div class="row w-100">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header text-white" style="background-color: #007bff;">
+                            Corsa 1
+                        </div>
+                        <div class="card-body">
+                            <h5>{{ race1.name }}</h5>
+                            <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race1.spingitore.nome_completo() if race1.spingitore else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header text-white" style="background-color: #28a745;">
+                            Corsa 2
+                        </div>
+                        <div class="card-body">
+                            <h5>{{ race2.name }}</h5>
+                            <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race2.spingitore.nome_completo() if race2.spingitore else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('main.compare') }}" class="btn btn-secondary ms-2">Torna alla selezione</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Grafico a sinistra -->
+    <div class="col-md-7">
+        <div id="comparison-chart" class="border p-2"></div>
+    </div>
+    
+    <!-- Tabelle a destra -->
+    <div class="col-md-5">
+        <!-- Prima tabella -->
+        <div class="mb-3 border p-2">
+            <h5>Dati Corsa 1</h5>
+            <div class="data-table">
+                <table class="table table-striped table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Distanza (m)</th>
+                            <th>Velocità (km/h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table1-body">
+                        <!-- Verrà popolato da JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Seconda tabella -->
+        <div class="border p-2">
+            <h5>Dati Corsa 2</h5>
+            <div class="data-table">
+                <table class="table table-striped table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Distanza (m)</th>
+                            <th>Velocità (km/h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table2-body">
+                        <!-- Verrà popolato da JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-6">
+<h5>Dettagli punto - Corsa 1</h5>
+        <div id="selected-point1-details" class="p-2 border">
+            Nessun punto selezionato
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <h5>Dettagli punto - Corsa 2</h5>
+        <div id="selected-point2-details" class="p-2 border">
+            Nessun punto selezionato
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Aggiungiamo Plotly -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+// Dati delle corse passati dal server
+var serverRace1Data = '{{ race1_data|tojson|safe }}';
+var serverRace2Data = '{{ race2_data|tojson|safe }}';
+var serverPoints1Data = '{{ points_data1|tojson|safe }}';
+var serverPoints2Data = '{{ points_data2|tojson|safe }}';
+
+// Converti le stringhe JSON in oggetti JavaScript
+const race1Data = JSON.parse(serverRace1Data);
+const race2Data = JSON.parse(serverRace2Data);
+const points1Data = JSON.parse(serverPoints1Data);
+const points2Data = JSON.parse(serverPoints2Data);
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Crea il grafico di confronto
+    const chartDiv = document.getElementById('comparison-chart');
+    
+    const trace1 = {
+        x: points1Data.map(point => point.distance),
+        y: points1Data.map(point => point.speed),
+        mode: 'lines+markers',
+        name: race1Data.name,
+        line: {
+            color: '#007bff',
+            width: 2
+        },
+        marker: {
+            size: 6,
+            color: '#007bff'
+        },
+        hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
+    };
+    
+    const trace2 = {
+        x: points2Data.map(point => point.distance),
+        y: points2Data.map(point => point.speed),
+        mode: 'lines+markers',
+        name: race2Data.name,
+        line: {
+            color: '#28a745',
+            width: 2
+        },
+        marker: {
+            size: 6,
+            color: '#28a745'
+        },
+        hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
+    };
+    
+    const layout = {
+        title: "Confronto Velocità/Distanza",
+        hovermode: 'closest',
+        xaxis: {
+            title: 'Distanza (m)',
+            gridcolor: 'rgba(0,0,0,0.1)',
+            zeroline: false
+        },
+        yaxis: {
+            title: 'Velocità (km/h)',
+            gridcolor: 'rgba(0,0,0,0.1)',
+            zeroline: false
+        },
+        plot_bgcolor: 'white',
+        paper_bgcolor: 'white',
+        legend: {
+            bgcolor: 'rgba(255,255,255,0.9)',
+            bordercolor: 'rgba(0,0,0,0.2)',
+            borderwidth: 1
+        },
+        margin: {l: 50, r: 40, t: 50, b: 40}
+    };
+    
+    Plotly.newPlot(chartDiv, [trace1, trace2], layout);
+    
+    // Popola le tabelle
+    const table1Body = document.getElementById('data-table1-body');
+    const table2Body = document.getElementById('data-table2-body');
+    
+    // Tabella corsa 1
+    points1Data.forEach((point, index) => {
+        const row = document.createElement('tr');
+        row.id = `row1-${index}`;
+        row.className = 'table-row-1';
+        row.innerHTML = `
+            <td>${point.distance.toFixed(2)}</td>
+            <td>${point.speed.toFixed(2)}</td>
+        `;
+        
+        // Gestisci il click sulla riga
+        row.addEventListener('click', () => {
+            selectPoint1(index);
+        });
+        
+        table1Body.appendChild(row);
+    });
+    
+    // Tabella corsa 2
+    points2Data.forEach((point, index) => {
+        const row = document.createElement('tr');
+        row.id = `row2-${index}`;
+        row.className = 'table-row-2';
+        row.innerHTML = `
+            <td>${point.distance.toFixed(2)}</td>
+            <td>${point.speed.toFixed(2)}</td>
+        `;
+        
+        // Gestisci il click sulla riga
+        row.addEventListener('click', () => {
+            selectPoint2(index);
+        });
+        
+        table2Body.appendChild(row);
+    });
+    
+    // Aggiungi evento per click sul grafico
+    chartDiv.on('plotly_click', function(data) {
+        const clickedPointX = data.points[0].x;
+        const curveIndex = data.points[0].curveNumber;
+        
+        if (curveIndex === 0) {
+            // Click sulla curva della corsa 1
+            let closestIndex = 0;
+            let minDistance = Infinity;
+            
+            points1Data.forEach((point, index) => {
+                const distance = Math.abs(point.distance - clickedPointX);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestIndex = index;
+                }
+            });
+            
+            selectPoint1(closestIndex);
+            
+            // Trova anche il punto corrispondente nella corsa 2
+            let closestIndex2 = 0;
+            let minDistance2 = Infinity;
+            
+            points2Data.forEach((point, index) => {
+                const distance = Math.abs(point.distance - clickedPointX);
+                if (distance < minDistance2) {
+                    minDistance2 = distance;
+                    closestIndex2 = index;
+                }
+            });
+            
+            selectPoint2(closestIndex2);
+        } else {
+            // Click sulla curva della corsa 2
+            let closestIndex = 0;
+            let minDistance = Infinity;
+            
+            points2Data.forEach((point, index) => {
+                const distance = Math.abs(point.distance - clickedPointX);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestIndex = index;
+                }
+            });
+            
+            selectPoint2(closestIndex);
+            
+            // Trova anche il punto corrispondente nella corsa 1
+            let closestIndex1 = 0;
+            let minDistance1 = Infinity;
+            
+            points1Data.forEach((point, index) => {
+                const distance = Math.abs(point.distance - clickedPointX);
+                if (distance < minDistance1) {
+                    minDistance1 = distance;
+                    closestIndex1 = index;
+                }
+            });
+            
+            selectPoint1(closestIndex1);
+        }
+    });
+    
+    // Funzione per selezionare un punto e aggiornare UI della corsa 1
+    function selectPoint1(index) {
+        // Resetta tutte le righe
+        document.querySelectorAll('.table-row-1').forEach(row => {
+            row.classList.remove('active');
+        });
+        
+        // Evidenzia la riga selezionata
+        const selectedRow = document.getElementById(`row1-${index}`);
+        selectedRow.classList.add('active');
+        
+        // Scrolls alla riga
+        selectedRow.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        
+        // Aggiorna dettagli del punto
+        const point = points1Data[index];
+        
+        // Calcola accelerazione media
+        let avgAcceleration = 0;
+        if (point.time > 0) {
+            const startSpeed = 0; // Assume velocità iniziale zero
+            const endSpeed = point.speed / 3.6; // Converti in m/s
+            avgAcceleration = (endSpeed - startSpeed) / point.time;
+        }
+        
+        document.getElementById('selected-point1-details').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Distanza:</strong> ${point.distance.toFixed(2)} m</p>
+                    <p class="mb-1"><strong>Velocità:</strong> ${point.speed.toFixed(2)} km/h</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Accelerazione:</strong> ${point.acceleration.toFixed(2)} m/s²</p>
+                    <p class="mb-1"><strong>Tempo:</strong> ${point.time.toFixed(2)} s</p>
+                    <p class="mb-1"><strong>Accelerazione media:</strong> ${avgAcceleration.toFixed(2)} m/s²</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Funzione per selezionare un punto e aggiornare UI della corsa 2
+    function selectPoint2(index) {
+        // Resetta tutte le righe
+        document.querySelectorAll('.table-row-2').forEach(row => {
+            row.classList.remove('active');
+        });
+        
+        // Evidenzia la riga selezionata
+        const selectedRow = document.getElementById(`row2-${index}`);
+        selectedRow.classList.add('active');
+        
+        // Scrolls alla riga
+        selectedRow.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        
+        // Aggiorna dettagli del punto
+        const point = points2Data[index];
+        
+        // Calcola accelerazione media
+        let avgAcceleration = 0;
+        if (point.time > 0) {
+            const startSpeed = 0; // Assume velocità iniziale zero
+            const endSpeed = point.speed / 3.6; // Converti in m/s
+            avgAcceleration = (endSpeed - startSpeed) / point.time;
+        }
+        
+        document.getElementById('selected-point2-details').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Distanza:</strong> ${point.distance.toFixed(2)} m</p>
+                    <p class="mb-1"><strong>Velocità:</strong> ${point.speed.toFixed(2)} km/h</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Accelerazione:</strong> ${point.acceleration.toFixed(2)} m/s²</p>
+                    <p class="mb-1"><strong>Tempo:</strong> ${point.time.toFixed(2)} s</p>
+                    <p class="mb-1"><strong>Accelerazione media:</strong> ${avgAcceleration.toFixed(2)} m/s²</p>
+                </div>
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

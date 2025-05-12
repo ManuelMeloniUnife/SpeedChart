@@ -7,48 +7,48 @@
     <div class="col-md-12">
         <h2>Confronto Corse</h2>
         <div class="d-flex justify-content-between">
-            <div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card mb-3">
-                            <div class="card-header bg-primary text-white">
-                                Corsa 1
-                            </div>
-                            <div class="card-body">
-                                <h5>{{ race1.name }}</h5>
-                                <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                                <p><strong>Pilota:</strong> {{ race1.spingitore.nome_completo() if race1.spingitore else 'N/A' }}</p>
-                            </div>
+            <div class="row w-100">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header text-white" style="background-color: #007bff;">
+                            Corsa 1
+                        </div>
+                        <div class="card-body">
+                            <h5>{{ race1.name }}</h5>
+                            <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race1.spingitore.nome_completo() if race1.spingitore else 'N/A' }}</p>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card mb-3">
-                            <div class="card-header bg-success text-white">
-                                Corsa 2
-                            </div>
-                            <div class="card-body">
-                                <h5>{{ race2.name }}</h5>
-                                <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                                <p><strong>Pilota:</strong> {{ race2.spingitore.nome_completo() if race2.spingitore else 'N/A' }}</p>
-                            </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header text-white" style="background-color: #28a745;">
+                            Corsa 2
+                        </div>
+                        <div class="card-body">
+                            <h5>{{ race2.name }}</h5>
+                            <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race2.spingitore.nome_completo() if race2.spingitore else 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
             </div>
             <div>
-                <a href="{{ url_for('main.compare') }}" class="btn btn-secondary">Torna alla selezione</a>
+                <a href="{{ url_for('main.compare') }}" class="btn btn-secondary ms-2">Torna alla selezione</a>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-md-12 dash-container">
-        <!-- Contenitore per la dashboard Dash di confronto -->
+    <div class="col-md-12">
+        <!-- Contenitore per la dashboard Dash di confronto - con URL modificato -->
         <iframe 
             src="/comparison/?race1_id={{ race1.id }}&race2_id={{ race2.id }}" 
-            style="width:100%; height:900px; border:none;"
+            style="width:100%; height:800px; border:none; overflow:hidden;"
             id="dash-iframe"
+            scrolling="no"
+            frameborder="0"
         ></iframe>
     </div>
 </div>
@@ -56,16 +56,23 @@
 
 {% block scripts %}
 <script>
-// Script per passare gli ID delle corse all'iframe di Dash
+// Non modificare l'URL nell'iframe - lascia che sia caricato direttamente
 document.addEventListener('DOMContentLoaded', function() {
-    // Modifica l'URL dell'iframe per includere gli ID delle corse
-    const iframe = document.getElementById('dash-iframe');
-    const originalSrc = iframe.src;
-    
-    // Assicurati che l'URL contenga gli ID delle corse
-    if (!originalSrc.includes('race1_id=')) {
-        iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'race1_id={{ race1.id }}&race2_id={{ race2.id }}';
+    // Regola l'altezza dell'iframe in base al contenuto
+    function resizeIframe() {
+        try {
+            const iframe = document.getElementById('dash-iframe');
+            // Usa un'altezza minima garantita
+            iframe.style.height = '800px';
+            iframe.style.minHeight = '800px';
+        } catch(e) {
+            console.error('Error resizing iframe:', e);
+        }
     }
+    
+    // Inizializza e imposta un intervallo per il ridimensionamento
+    resizeIframe();
+    window.addEventListener('resize', resizeIframe);
 });
 </script>
 {% endblock %}

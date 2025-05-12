@@ -80,7 +80,7 @@ def upload():
                 
                 db.session.commit()
                 flash(f'Prova "{race_name}" caricata con successo!', 'success')
-                return redirect(url_for('main.view_race', race_id=race.id))
+                return redirect(url_for('main.view_race_direct', race_id=race.id))
                 
             except Exception as e:
                 flash(f'Errore durante il parsing del file: {str(e)}', 'danger')
@@ -104,6 +104,37 @@ def view_race(race_id):
     race = Race.query.get_or_404(race_id)
     return render_template('dashboard.html', race=race)
 
+@main.route('/view_race_direct/<int:race_id>')
+def view_race_direct(race_id):
+    """Visualizza una corsa con dati precaricati (senza Dash)"""
+    race = Race.query.get_or_404(race_id)
+    
+    # Ottieni i dati direttamente per passarli al template
+    data_points = DataPoint.query.filter_by(race_id=race_id).order_by(DataPoint.distance).all()
+    
+    # Converti i dati per renderli serializzabili per JavaScript
+    race_data = {
+        'id': race.id,
+        'name': race.name,
+        'date': race.date.strftime('%d/%m/%Y %H:%M'),
+        'driver': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+        'notes': race.notes
+    }
+    
+    points_data = [
+        {
+            'distance': float(point.distance),
+            'speed': float(point.speed),
+            'acceleration': float(point.acceleration) if point.acceleration is not None else 0.0,
+            'time': float(point.time) if point.time is not None else 0.0
+        } for point in data_points
+    ]
+    
+    return render_template('view_race_direct.html', 
+                          race=race,
+                          race_data=race_data,
+                          points_data=points_data)
+
 @main.route('/compare')
 def compare():
     """Pagina per confrontare due corse"""
@@ -117,6 +148,59 @@ def view_comparison(race1_id, race2_id):
     race1 = Race.query.get_or_404(race1_id)
     race2 = Race.query.get_or_404(race2_id)
     return render_template('comparison_dashboard.html', race1=race1, race2=race2)
+
+@main.route('/view_comparison_direct/<int:race1_id>/<int:race2_id>')
+def view_comparison_direct(race1_id, race2_id):
+    """Visualizza il confronto tra due corse con dati precaricati (senza Dash)"""
+    race1 = Race.query.get_or_404(race1_id)
+    race2 = Race.query.get_or_404(race2_id)
+    
+    # Ottieni i dati direttamente
+    data_points1 = DataPoint.query.filter_by(race_id=race1_id).order_by(DataPoint.distance).all()
+    data_points2 = DataPoint.query.filter_by(race_id=race2_id).order_by(DataPoint.distance).all()
+    
+    # Converti i dati
+    race1_data = {
+        'id': race1.id,
+        'name': race1.name,
+        'date': race1.date.strftime('%d/%m/%Y %H:%M'),
+        'driver': race1.spingitore.nome_completo() if race1.spingitore else 'N/A',
+        'notes': race1.notes
+    }
+    
+    race2_data = {
+        'id': race2.id,
+        'name': race2.name,
+        'date': race2.date.strftime('%d/%m/%Y %H:%M'),
+        'driver': race2.spingitore.nome_completo() if race2.spingitore else 'N/A',
+        'notes': race2.notes
+    }
+    
+    points_data1 = [
+        {
+            'distance': float(point.distance),
+            'speed': float(point.speed),
+            'acceleration': float(point.acceleration) if point.acceleration is not None else 0.0,
+            'time': float(point.time) if point.time is not None else 0.0
+        } for point in data_points1
+    ]
+    
+    points_data2 = [
+        {
+            'distance': float(point.distance),
+            'speed': float(point.speed),
+            'acceleration': float(point.acceleration) if point.acceleration is not None else 0.0,
+            'time': float(point.time) if point.time is not None else 0.0
+        } for point in data_points2
+    ]
+    
+    return render_template('view_comparison_direct.html', 
+                          race1=race1,
+                          race2=race2,
+                          race1_data=race1_data,
+                          race2_data=race2_data,
+                          points_data1=points_data1,
+                          points_data2=points_data2)
 
 @main.route('/gestione-team')
 def gestione_team():

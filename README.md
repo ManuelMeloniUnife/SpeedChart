@@ -1,24 +1,25 @@
-# SpeedChart
+=============================================
+             SPEEDCHART
+=============================================
 
-SpeedChart è un'applicazione web per l'analisi dei dati di performance di corse sportive amatoriali, in particolare per la carrera autopodistica di Castel San Pietro.
+ISTRUZIONI PER L'INSTALLAZIONE:
+1. Fare doppio clic su "setup_speedchart.bat"
+2. Seguire le istruzioni a schermo
+3. Al termine dell'installazione, verrà creato un collegamento sul desktop
 
-## Caratteristiche
+ISTRUZIONI PER L'AVVIO:
+- Fare doppio clic sul collegamento "SpeedChart" sul desktop
+- OPPURE eseguire "avvia_speedchart.bat" nella cartella del programma
 
-* Caricamento e analisi di file .txt dal computer di bordo
-* Visualizzazione grafica della velocità rispetto alla distanza
-* Calcolo automatico di accelerazione e tempo
-* Confronto tra due corse per analisi comparative
-* Interfaccia moderna con tema scuro
-* Database per archiviazione e ricerca dati
+REQUISITI:
+- Windows 10 o più recente
 
-## Requisiti tecnici
+NOTA: 
+- La prima esecuzione potrebbe richiedere alcuni minuti per 
+  l'installazione di tutte le dipendenze.
+- Durante l'installazione si aprirà brevemente una finestra 
+  di Python che si chiuderà automaticamente.
+- In caso di problemi durante l'installazione, consultare 
+  il file "install_log.txt" che viene generato nel processo.
 
-* Python 3.10 o superiore
-* Librerie necessarie nel file requirements.txt
-
-## Installazione
-
-1. Clona il repository:
-```bash
-git clone https://github.com/tuousername/SpeedChart.git
-cd SpeedChart
+=============================================

@@ -15,7 +15,7 @@
         background-color: #28a74520 !important;
     }
     #comparison-chart {
-        height: 60vh;
+        height: 70vh; /* Aumentato */
     }
     #selected-point1-details, #selected-point2-details {
         min-height: 100px;
@@ -62,13 +62,13 @@
 </div>
 
 <div class="row">
-    <!-- Grafico a sinistra -->
-    <div class="col-md-7">
+    <!-- Grafico a sinistra - ampliato -->
+    <div class="col-md-8">
         <div id="comparison-chart" class="border p-2"></div>
     </div>
     
-    <!-- Tabelle a destra -->
-    <div class="col-md-5">
+    <!-- Tabelle a destra - ridotte -->
+    <div class="col-md-4">
         <!-- Prima tabella -->
         <div class="mb-3 border p-2">
             <h5>Dati Corsa 1</h5>
@@ -109,7 +109,7 @@
 
 <div class="row mt-3">
     <div class="col-md-6">
-<h5>Dettagli punto - Corsa 1</h5>
+        <h5>Dettagli punto - Corsa 1</h5>
         <div id="selected-point1-details" class="p-2 border">
             Nessun punto selezionato
         </div>
@@ -196,10 +196,15 @@ document.addEventListener('DOMContentLoaded', function() {
             bordercolor: 'rgba(0,0,0,0.2)',
             borderwidth: 1
         },
-        margin: {l: 50, r: 40, t: 50, b: 40}
+        margin: {l: 50, r: 40, t: 50, b: 40},
+        shapes: [] // Array vuoto per le forme (linee verticali)
     };
     
     Plotly.newPlot(chartDiv, [trace1, trace2], layout);
+    
+    // Variabili per memorizzare gli indici dei punti selezionati
+    let selectedPoint1Index = null;
+    let selectedPoint2Index = null;
     
     // Popola le tabelle
     const table1Body = document.getElementById('data-table1-body');
@@ -242,15 +247,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Aggiungi evento per click sul grafico
+    // Modifica la gestione del click sul grafico
+
+    // Aggiungi evento per click sul grafico
     chartDiv.on('plotly_click', function(data) {
         const clickedPointX = data.points[0].x;
         const curveIndex = data.points[0].curveNumber;
-        
+
         if (curveIndex === 0) {
             // Click sulla curva della corsa 1
             let closestIndex = 0;
             let minDistance = Infinity;
-            
+
             points1Data.forEach((point, index) => {
                 const distance = Math.abs(point.distance - clickedPointX);
                 if (distance < minDistance) {
@@ -258,27 +266,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     closestIndex = index;
                 }
             });
-            
+
             selectPoint1(closestIndex);
-            
-            // Trova anche il punto corrispondente nella corsa 2
-            let closestIndex2 = 0;
-            let minDistance2 = Infinity;
-            
-            points2Data.forEach((point, index) => {
-                const distance = Math.abs(point.distance - clickedPointX);
-                if (distance < minDistance2) {
-                    minDistance2 = distance;
-                    closestIndex2 = index;
+
+            // Trova il punto corrispondente nella corsa 2 solo se è in un range ragionevole
+            const clickedDistance = points1Data[closestIndex].distance;
+            const maxDistance2 = Math.max(...points2Data.map(p => p.distance));
+
+            // Verifica se il punto cliccato è all'interno del range della seconda curva
+            if (clickedDistance <= maxDistance2) {
+                let closestIndex2 = 0;
+                let minDistance2 = Infinity;
+
+                points2Data.forEach((point, index) => {
+                    const distance = Math.abs(point.distance - clickedDistance);
+                    if (distance < minDistance2) {
+                        minDistance2 = distance;
+                        closestIndex2 = index;
+                    }
+                });
+
+                // Seleziona solo se è abbastanza vicino (entro 5 metri)
+                if (minDistance2 < 5) {
+                    selectPoint2(closestIndex2);
+                } else {
+                    // Deseleziona se fuori range
+                    deselectPoint2();
                 }
-            });
-            
-            selectPoint2(closestIndex2);
+            } else {
+                // Deseleziona se fuori range
+                deselectPoint2();
+            }
         } else {
             // Click sulla curva della corsa 2
             let closestIndex = 0;
             let minDistance = Infinity;
-            
+
             points2Data.forEach((point, index) => {
                 const distance = Math.abs(point.distance - clickedPointX);
                 if (distance < minDistance) {
@@ -286,27 +309,63 @@ document.addEventListener('DOMContentLoaded', function() {
                     closestIndex = index;
                 }
             });
-            
+
             selectPoint2(closestIndex);
-            
-            // Trova anche il punto corrispondente nella corsa 1
-            let closestIndex1 = 0;
-            let minDistance1 = Infinity;
-            
-            points1Data.forEach((point, index) => {
-                const distance = Math.abs(point.distance - clickedPointX);
-                if (distance < minDistance1) {
-                    minDistance1 = distance;
-                    closestIndex1 = index;
+
+            // Trova il punto corrispondente nella corsa 1 solo se è in un range ragionevole
+            const clickedDistance = points2Data[closestIndex].distance;
+            const maxDistance1 = Math.max(...points1Data.map(p => p.distance));
+
+            // Verifica se il punto cliccato è all'interno del range della prima curva
+            if (clickedDistance <= maxDistance1) {
+                let closestIndex1 = 0;
+                let minDistance1 = Infinity;
+
+                points1Data.forEach((point, index) => {
+                    const distance = Math.abs(point.distance - clickedDistance);
+                    if (distance < minDistance1) {
+                        minDistance1 = distance;
+                        closestIndex1 = index;
+                    }
+                });
+
+                // Seleziona solo se è abbastanza vicino (entro 5 metri)
+                if (minDistance1 < 5) {
+                    selectPoint1(closestIndex1);
+                } else {
+                    // Deseleziona se fuori range
+                    deselectPoint1();
                 }
-            });
-            
-            selectPoint1(closestIndex1);
+            } else {
+                // Deseleziona se fuori range
+                deselectPoint1();
+            }
         }
     });
+
+    // Aggiungi queste funzioni per deselezionare i punti
+    function deselectPoint1() {
+        selectedPoint1Index = null;
+        document.querySelectorAll('.table-row-1').forEach(row => {
+            row.classList.remove('active');
+        });
+        document.getElementById('selected-point1-details').innerHTML = "Nessun punto selezionato";
+        updateChartHighlights();
+    }
+
+    function deselectPoint2() {
+        selectedPoint2Index = null;
+        document.querySelectorAll('.table-row-2').forEach(row => {
+            row.classList.remove('active');
+        });
+        document.getElementById('selected-point2-details').innerHTML = "Nessun punto selezionato";
+        updateChartHighlights();
+    }
     
     // Funzione per selezionare un punto e aggiornare UI della corsa 1
     function selectPoint1(index) {
+        selectedPoint1Index = index;
+        
         // Resetta tutte le righe
         document.querySelectorAll('.table-row-1').forEach(row => {
             row.classList.remove('active');
@@ -346,10 +405,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
+        
+        // Aggiorna il grafico
+        updateChartHighlights();
     }
     
     // Funzione per selezionare un punto e aggiornare UI della corsa 2
     function selectPoint2(index) {
+        selectedPoint2Index = index;
+        
         // Resetta tutte le righe
         document.querySelectorAll('.table-row-2').forEach(row => {
             row.classList.remove('active');
@@ -389,6 +453,112 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
+        
+        // Aggiorna il grafico
+        updateChartHighlights();
+    }
+    
+    // Funzione per aggiornare le evidenziazioni sul grafico
+    // Nel file view_comparison_direct.html, modifica la funzione updateChartHighlights:
+
+// Funzione per aggiornare le evidenziazioni sul grafico
+    function updateChartHighlights() {
+        // Crea array di forme (linee verticali)
+        const shapes = [];
+        const maxY = Math.max(
+            ...points1Data.map(p => p.speed),
+            ...points2Data.map(p => p.speed)
+        ) * 1.1; // Un po' oltre il massimo
+        
+        // Aggiungi le linee verticali solo per i punti effettivamente selezionati
+        if (selectedPoint1Index !== null) {
+            const point1 = points1Data[selectedPoint1Index];
+            shapes.push({
+                type: 'line',
+                x0: point1.distance,
+                y0: 0,
+                x1: point1.distance,
+                y1: maxY,
+                line: {
+                    color: 'rgba(0, 123, 255, 0.5)', // Blu semi-trasparente
+                    width: 1,
+                    dash: 'dot'
+                }
+            });
+        }
+        
+        if (selectedPoint2Index !== null) {
+            const point2 = points2Data[selectedPoint2Index];
+            shapes.push({
+                type: 'line',
+                x0: point2.distance,
+                y0: 0,
+                x1: point2.distance,
+                y1: maxY,
+                line: {
+                    color: 'rgba(40, 167, 69, 0.5)', // Verde semi-trasparente
+                    width: 1,
+                    dash: 'dot'
+                }
+            });
+        }
+        
+        // Aggiorna il layout con le nuove linee
+        Plotly.relayout(chartDiv, {
+            'shapes': shapes
+        });
+        
+        // Aggiorna i punti evidenziati
+        const updatedTraces = [];
+        
+        if (selectedPoint1Index !== null) {
+            const point1 = points1Data[selectedPoint1Index];
+            updatedTraces.push({
+                x: [point1.distance],
+                y: [point1.speed],
+                mode: 'markers',
+                marker: {
+                    color: '#ff3333', // Rosso per punto 1
+                    size: 10,
+                    line: {
+                        color: 'white',
+                        width: 2
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'none'
+            });
+        }
+        
+        if (selectedPoint2Index !== null) {
+            const point2 = points2Data[selectedPoint2Index];
+            updatedTraces.push({
+                x: [point2.distance],
+                y: [point2.speed],
+                mode: 'markers',
+                marker: {
+                    color: '#ff5500', // Arancione per punto 2
+                    size: 10,
+                    line: {
+                        color: 'white',
+                        width: 2
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'none'
+            });
+        }
+        
+        // Rimuovi eventuali punti evidenziati esistenti
+        if (chartDiv.data.length > 2) {
+            const tracesToDelete = Array.from({ length: chartDiv.data.length - 2 }, (_, i) => i + 2);
+            Plotly.deleteTraces(chartDiv, tracesToDelete);
+        }
+        
+        // Aggiungi i nuovi punti evidenziati
+        if (updatedTraces.length > 0) {
+            Plotly.addTraces(chartDiv, updatedTraces);
+        }
     }
 });
 </script>

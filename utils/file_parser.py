@@ -39,6 +39,15 @@ def parse_race_file(file_content, wheel_circumference=1.52):
     data_points = []
     distance = 0.0
     
+    # Aggiungiamo sempre un punto di partenza a 0,0
+    data_points.append({
+        'distance': 0.0,
+        'speed': 0.0
+    })
+    
+    # Flag per tenere traccia se abbiamo già aggiunto zeri iniziali
+    found_non_zero = False
+    
     for line in lines:
         # Salta righe di intestazione e vuote
         if not line.strip() or any(word in line for word in ["giroruota", "misura", "/"]):
@@ -51,17 +60,15 @@ def parse_race_file(file_content, wheel_circumference=1.52):
             if speed_str:
                 speed = float(speed_str)
                 
-                # Salta velocità zero ripetute all'inizio
-                if not data_points and speed == 0.0:
-                    continue
+                # Se è il primo valore non zero, incrementa la distanza
+                if speed > 0.0 or found_non_zero:
+                    found_non_zero = True
+                    distance += wheel_circumference
                     
-                data_points.append({
-                    'distance': distance,
-                    'speed': speed
-                })
-                
-                # Incrementa la distanza per il prossimo punto
-                distance += wheel_circumference
+                    data_points.append({
+                        'distance': distance,
+                        'speed': speed
+                    })
         except ValueError:
             # Salta righe che non possono essere convertite in float
             continue

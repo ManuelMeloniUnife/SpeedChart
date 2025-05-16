@@ -14,7 +14,11 @@ body {
     border-radius: 5px;
     margin: 2px 0;
 }
-
+/* Effetto hover per il logo */
+.sidebar a:hover img {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
 .sidebar .nav-link:hover {
     background-color: #e9ecef;
 }

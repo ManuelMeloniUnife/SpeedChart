@@ -131,7 +131,7 @@ def view_race_direct(race_id):
     ]
     
     return render_template('view_race_direct.html', 
-                          race=race,
+                          race=race,              # Assicurati che 'race' venga passato
                           race_data=race_data,
                           points_data=points_data)
 
@@ -195,8 +195,8 @@ def view_comparison_direct(race1_id, race2_id):
     ]
     
     return render_template('view_comparison_direct.html', 
-                          race1=race1,
-                          race2=race2,
+                          race1=race1,             # Assicurati che 'race1' venga passato
+                          race2=race2,             # Assicurati che 'race2' venga passato
                           race1_data=race1_data,
                           race2_data=race2_data,
                           points_data1=points_data1,

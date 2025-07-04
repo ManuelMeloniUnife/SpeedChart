@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // MODIFICATO: Click sul grafico migliorato
+    // MODIFICATO: Click sul grafico migliorato - ovunque nel grafico
     chartDiv.on('plotly_click', function(data) {
         const clickedPointX = data.points[0].x;
         
@@ -217,6 +217,60 @@ document.addEventListener('DOMContentLoaded', function() {
         
         selectPoint(closestIndex);
     });
+
+    // NUOVO: Gestione click ovunque nel grafico usando plotly_relayout
+    chartDiv.on('plotly_relayout', function(eventdata) {
+        // Questo gestore viene chiamato per vari eventi, inclusi i click
+        // Ma non è quello giusto per i click
+    });
+
+    // NUOVO: Gestione click su aree vuote del grafico
+    chartDiv.plotContainer = chartDiv.querySelector('.plot-container');
+    if (chartDiv.plotContainer) {
+        chartDiv.plotContainer.addEventListener('mousedown', function(event) {
+            // Verifica che non sia un drag
+            const startX = event.clientX;
+            const startY = event.clientY;
+            
+            const mouseUpHandler = function(upEvent) {
+                const endX = upEvent.clientX;
+                const endY = upEvent.clientY;
+                const distance = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+                
+                // Se il movimento è minimo, è un click
+                if (distance < 5) {
+                    // Ottieni le coordinate del click
+                    const rect = chartDiv.getBoundingClientRect();
+                    const xaxis = chartDiv._fullLayout.xaxis;
+                    
+                    if (xaxis) {
+                        // Converti le coordinate pixel in coordinate dati
+                        const relativeX = upEvent.clientX - rect.left - xaxis._offset;
+                        const xData = xaxis.p2c(relativeX);
+                        
+                        // Trova il punto più vicino
+                        let closestIndex = 0;
+                        let minDistance = Infinity;
+                        
+                        pointsData.forEach((point, index) => {
+                            const distance = Math.abs(point.distance - xData);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestIndex = index;
+                            }
+                        });
+                        
+                        selectPoint(closestIndex);
+                    }
+                }
+                
+                // Rimuovi il listener
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+            
+            document.addEventListener('mouseup', mouseUpHandler);
+        });
+    }
     
     // MODIFICATO: Funzione per selezionare un punto e aggiornare UI
     function selectPoint(index) {
@@ -271,27 +325,13 @@ document.addEventListener('DOMContentLoaded', function() {
         highlightPointOnChart(index);
     }
     
-    // MODIFICATO: Funzione per evidenziare il punto sul grafico
+    // MODIFICATO: Funzione per evidenziare il punto sul grafico (senza linea verticale)
     function highlightPointOnChart(index) {
         const point = pointsData[index];
         
-        // Definisci la linea verticale ROSSA
-        const verticalLine = {
-            type: 'line',
-            x0: point.distance,
-            y0: 0,
-            x1: point.distance,
-            y1: Math.max(...pointsData.map(p => p.speed)) * 1.1,
-            line: {
-                color: 'red',  // MODIFICATO: linea rossa
-                width: 2,      // MODIFICATO: più spessa
-                dash: 'solid'  // MODIFICATO: linea continua
-            }
-        };
-        
-        // Aggiorna il layout con la nuova linea
+        // Rimuovi eventuali linee verticali precedenti
         Plotly.relayout(chartDiv, {
-            'shapes': [verticalLine]
+            'shapes': []
         });
         
         // Crea un nuovo set di dati per il punto selezionato ROSSO

@@ -37,7 +37,7 @@
                         <div class="card-body">
                             <h5>{{ race1.name }}</h5>
                             <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                            <p><strong>Pilota:</strong> {{ race1.spingitore.nome_completo() if race1.spingitore else 'N/A' }}</p>
+                            <p><strong>Spingitori:</strong> {{ race1.get_spingitori_names() }}</p>
                         </div>
                     </div>
                 </div>
@@ -49,7 +49,8 @@
                         <div class="card-body">
                             <h5>{{ race2.name }}</h5>
                             <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                            <p><strong>Pilota:</strong> {{ race2.spingitore.nome_completo() if race2.spingitore else 'N/A' }}</p>
+                            <p><strong>Spingitori:</strong> {{ race2.get_spingitori_names() }}</p>
+
                         </div>
                     </div>
                 </div>
@@ -147,35 +148,108 @@ document.addEventListener('DOMContentLoaded', function() {
     const trace1 = {
         x: points1Data.map(point => point.distance),
         y: points1Data.map(point => point.speed),
-        mode: 'lines+markers',
+        mode: 'lines',  // MODIFICATO: solo linee
         name: race1Data.name,
         line: {
             color: '#007bff',
             width: 2
         },
-        marker: {
-            size: 6,
-            color: '#007bff'
-        },
         hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
     };
-    
+
     const trace2 = {
         x: points2Data.map(point => point.distance),
         y: points2Data.map(point => point.speed),
-        mode: 'lines+markers',
+        mode: 'lines',  // MODIFICATO: solo linee
         name: race2Data.name,
         line: {
             color: '#28a745',
             width: 2
         },
-        marker: {
-            size: 6,
-            color: '#28a745'
-        },
         hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
     };
-    
+
+    // NUOVO: Aggiungi la gestione della tastiera dopo la creazione del grafico
+    document.addEventListener('keydown', function(e) {
+        if (document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA' || 
+            document.activeElement.tagName === 'SELECT') {
+            return;
+        }
+
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            if (selectedPoint1Index === null && selectedPoint2Index === null) {
+                // Seleziona il primo punto di entrambe le curve
+                selectPoint1(0);
+                selectPoint2(0);
+            } else {
+                // Avanza solo se entrambi possono ancora muoversi, altrimenti solo quello che può
+                const nextIndex1 = selectedPoint1Index + 1;
+                const nextIndex2 = selectedPoint2Index + 1;
+
+                const canMove1 = nextIndex1 < points1Data.length;
+                const canMove2 = nextIndex2 < points2Data.length;
+
+                if (canMove1 && canMove2) {
+                    // Entrambi possono muoversi insieme
+                    selectPoint1(nextIndex1);
+                    selectPoint2(nextIndex2);
+                } else if (canMove1) {
+                    // Solo il grafico 1 può continuare
+                    selectPoint1(nextIndex1);
+                } else if (canMove2) {
+                    // Solo il grafico 2 può continuare  
+                    selectPoint2(nextIndex2);
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            if (selectedPoint1Index === null && selectedPoint2Index === null) {
+                // Seleziona l'ultimo punto di entrambe le curve
+                selectPoint1(points1Data.length - 1);
+                selectPoint2(points2Data.length - 1);
+            } else {
+                // Logica per tornare indietro con sincronizzazione
+                const prevIndex1 = selectedPoint1Index - 1;
+                const prevIndex2 = selectedPoint2Index - 1;
+
+                const canMove1 = prevIndex1 >= 0;
+                const canMove2 = prevIndex2 >= 0;
+
+                // Controlla se i punti sono alla stessa "posizione logica"
+                const atSameLogicalPosition = (selectedPoint1Index === selectedPoint2Index) ||
+                                            (selectedPoint1Index === points1Data.length - 1 && selectedPoint2Index === points2Data.length - 1);
+
+                if (atSameLogicalPosition && canMove1 && canMove2) {
+                    // Sono sincronizzati, muovi entrambi
+                    selectPoint1(prevIndex1);
+                    selectPoint2(prevIndex2);
+                } else {
+                    // Non sono sincronizzati, muovi solo quello più avanti
+                    // Determina quale è più "avanti" confrontando la posizione relativa alla fine del proprio grafico
+                    const distance1FromEnd = (points1Data.length - 1) - selectedPoint1Index;
+                    const distance2FromEnd = (points2Data.length - 1) - selectedPoint2Index;
+
+                    if (distance1FromEnd < distance2FromEnd && canMove1) {
+                        // Il grafico 1 è più avanti rispetto alla sua fine, muovilo
+                        selectPoint1(prevIndex1);
+                    } else if (distance2FromEnd < distance1FromEnd && canMove2) {
+                        // Il grafico 2 è più avanti rispetto alla sua fine, muovilo
+                        selectPoint2(prevIndex2);
+                    } else if (distance1FromEnd === distance2FromEnd && canMove1 && canMove2) {
+                        // Sono alla stessa distanza dalla fine, muovi entrambi
+                        selectPoint1(prevIndex1);
+                        selectPoint2(prevIndex2);
+                    } else if (canMove1 && !canMove2) {
+                        selectPoint1(prevIndex1);
+                    } else if (canMove2 && !canMove1) {
+                        selectPoint2(prevIndex2);
+                    }
+                }
+            }
+        }
+    }); 
     const layout = {
         title: "Confronto Velocità/Distanza",
         hovermode: 'closest',
@@ -414,52 +488,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Funzione per aggiornare le evidenziazioni sul grafico
     function updateChartHighlights() {
-        // Crea array di forme (linee verticali)
-        const shapes = [];
-        const maxY = Math.max(
-            ...points1Data.map(p => p.speed),
-            ...points2Data.map(p => p.speed)
-        ) * 1.1; // Un po' oltre il massimo
+        // ... resto del codice per le linee verticali ...
         
-        // Aggiungi le linee verticali solo per i punti effettivamente selezionati
-        if (selectedPoint1Index !== null) {
-            const point1 = points1Data[selectedPoint1Index];
-            shapes.push({
-                type: 'line',
-                x0: point1.distance,
-                y0: 0,
-                x1: point1.distance,
-                y1: maxY,
-                line: {
-                    color: 'rgba(0, 123, 255, 0.5)', // Blu semi-trasparente
-                    width: 1,
-                    dash: 'dot'
-                }
-            });
-        }
-        
-        if (selectedPoint2Index !== null) {
-            const point2 = points2Data[selectedPoint2Index];
-            shapes.push({
-                type: 'line',
-                x0: point2.distance,
-                y0: 0,
-                x1: point2.distance,
-                y1: maxY,
-                line: {
-                    color: 'rgba(40, 167, 69, 0.5)', // Verde semi-trasparente
-                    width: 1,
-                    dash: 'dot'
-                }
-            });
-        }
-        
-        // Aggiorna il layout con le nuove linee
-        Plotly.relayout(chartDiv, {
-            'shapes': shapes
-        });
-        
-        // Aggiorna i punti evidenziati
+        // Aggiorna i punti evidenziati ROSSI
         const updatedTraces = [];
         
         if (selectedPoint1Index !== null) {
@@ -469,10 +500,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 y: [point1.speed],
                 mode: 'markers',
                 marker: {
-                    color: '#ff3333', // Rosso per punto 1
-                    size: 10,
+                    color: 'red',        // MODIFICATO: rosso
+                    size: 12,            // MODIFICATO: più grande
                     line: {
-                        color: 'white',
+                        color: 'darkred', // MODIFICATO: bordo rosso scuro
+                        width: 2
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'none'
+            });
+        }
+
+        if (selectedPoint2Index !== null) {
+            const point2 = points2Data[selectedPoint2Index];
+            updatedTraces.push({
+                x: [point2.distance],
+                y: [point2.speed],
+                mode: 'markers',
+                marker: {
+                    color: 'red',        // MODIFICATO: rosso
+                    size: 12,            // MODIFICATO: più grande
+                    line: {
+                        color: 'darkred', // MODIFICATO: bordo rosso scuro
                         width: 2
                     }
                 },

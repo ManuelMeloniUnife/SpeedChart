@@ -1,6 +1,7 @@
 # routes.py
+# routes.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Race, DataPoint, Spingitore
+from models import db, Race, DataPoint, Spingitore, race_spingitore  # Aggiungi race_spingitore qui
 from utils.file_parser import parse_race_file
 from datetime import datetime, date
 from sqlalchemy import desc
@@ -37,12 +38,12 @@ def upload():
             
             # Ottieni i dati dal form
             race_name = request.form.get('race_name', '')
-            spingitore_id = request.form.get('spingitore_id', '')
+            spingitori_ids = request.form.getlist('spingitori_ids')  # Ottiene lista di ID selezionati
             race_date = request.form.get('date', '')
             notes = request.form.get('notes', '')
             
-            if not race_name or not spingitore_id:
-                flash('Nome della prova e pilota sono obbligatori', 'danger')
+            if not race_name or not spingitori_ids:
+                flash('Nome della prova e almeno un pilota sono obbligatori', 'danger')
                 return redirect(request.url)
             
             # Parsa il file
@@ -59,10 +60,15 @@ def upload():
                 race = Race(
                     name=race_name,
                     date=race_date,
-                    spingitore_id=spingitore_id,
                     notes=notes,
                     wheel_circumference=parsed_data['header_info'].get('wheel_circumference', 1.52)
                 )
+                
+                # Aggiungi gli spingitori selezionati
+                for spingitore_id in spingitori_ids:
+                    spingitore = Spingitore.query.get(spingitore_id)
+                    if spingitore:
+                        race.spingitori.append(spingitore)
                 
                 db.session.add(race)
                 db.session.flush()  # Per ottenere l'ID della corsa
@@ -95,9 +101,37 @@ def upload():
 
 @main.route('/visualizza-dati')
 def visualizza_dati():
-    races = Race.query.order_by(Race.date.desc()).all()
+    # Ottieni tutti gli spingitori - usati per filtro
     spingitori = Spingitore.query.order_by(Spingitore.nome).all()
-    return render_template('visualizza_dati.html', races=races, spingitori=spingitori)
+    
+    # Ottieni tutte le corse dove TUTTI gli spingitori sono attivi
+    races = Race.query.all()
+    
+    # Filtra le corse per mostrare solo quelle con tutti gli spingitori attivi
+    active_races = []
+    for race in races:
+        all_active = True
+        for spingitore in race.spingitori:
+            if not spingitore.attivo:
+                all_active = False
+                break
+        if all_active and race.spingitori.count() > 0:
+            active_races.append(race)
+    
+    # Converti gli spingitori in dizionari per la serializzazione JSON
+    spingitori_data = []
+    for spingitore in spingitori:
+        spingitori_data.append({
+            'id': spingitore.id,
+            'nome': spingitore.nome,
+            'cognome': spingitore.cognome or '',
+            'nome_completo': spingitore.nome_completo()
+        })
+            
+    return render_template('visualizza_dati.html', 
+                          races=active_races, 
+                          spingitori=spingitori, 
+                          spingitori_data=spingitori_data)
 
 @main.route('/race/<int:race_id>')
 def view_race(race_id):
@@ -117,7 +151,7 @@ def view_race_direct(race_id):
         'id': race.id,
         'name': race.name,
         'date': race.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+        'driver': race.get_spingitori_names(),  # MODIFICA QUI: usa get_spingitori_names() invece di spingitore
         'notes': race.notes
     }
     
@@ -131,16 +165,45 @@ def view_race_direct(race_id):
     ]
     
     return render_template('view_race_direct.html', 
-                          race=race,              # Assicurati che 'race' venga passato
+                          race=race,
                           race_data=race_data,
                           points_data=points_data)
 
 @main.route('/compare')
 def compare():
     """Pagina per confrontare due corse"""
-    races = Race.query.order_by(Race.date.desc()).all()
+    races = Race.query.all()
+    
+    # Filtra le corse per mostrare solo quelle con tutti gli spingitori attivi
+    active_races = []
+    for race in races:
+        all_active = True
+        for spingitore in race.spingitori:
+            if not spingitore.attivo:
+                all_active = False
+                break
+        if all_active and race.spingitori.count() > 0:
+            active_races.append(race)
+    
+    # Ordina per data
+    active_races.sort(key=lambda x: x.date, reverse=True)
+    
     spingitori = Spingitore.query.order_by(Spingitore.nome).all()
-    return render_template('compare.html', races=races, spingitori=spingitori)
+    
+    # Converti gli spingitori in dizionari per la serializzazione JSON
+    spingitori_data = []
+    for spingitore in spingitori:
+        spingitori_data.append({
+            'id': spingitore.id,
+            'nome': spingitore.nome,
+            'cognome': spingitore.cognome or '',
+            'nome_completo': spingitore.nome_completo()
+        })
+    
+    return render_template('compare.html', 
+                          races=active_races, 
+                          spingitori=spingitori,
+                          spingitori_data=spingitori_data)
 
 @main.route('/view_comparison/<int:race1_id>/<int:race2_id>')
 def view_comparison(race1_id, race2_id):
@@ -164,7 +227,7 @@ def view_comparison_direct(race1_id, race2_id):
         'id': race1.id,
         'name': race1.name,
         'date': race1.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race1.spingitore.nome_completo() if race1.spingitore else 'N/A',
+        'driver': race1.get_spingitori_names(),  # Cambiato qui
         'notes': race1.notes
     }
     
@@ -172,7 +235,7 @@ def view_comparison_direct(race1_id, race2_id):
         'id': race2.id,
         'name': race2.name,
         'date': race2.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race2.spingitore.nome_completo() if race2.spingitore else 'N/A',
+        'driver': race2.get_spingitori_names(),  # Cambiato qui
         'notes': race2.notes
     }
     
@@ -385,7 +448,7 @@ def get_race_data(race_id):
             'id': race.id,
             'name': race.name,
             'date': race.date.strftime('%d/%m/%Y %H:%M'),
-            'pilota': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+            'piloti': race.get_spingitori_names(),
             'notes': race.notes
         },
         'data_points': [

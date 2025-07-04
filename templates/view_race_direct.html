@@ -33,7 +33,7 @@
         <div class="d-flex justify-content-between">
             <div>
                 <p><strong>Data:</strong> {{ race.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                <p><strong>Pilota:</strong> {{ race.spingitore.nome_completo() if race.spingitore else 'N/A' }}</p>
+                <p><strong>Spingitori:</strong> {{ race.get_spingitori_names() }}</p>
             </div>
             <div>
                 <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Torna alla lista</a>
@@ -110,20 +110,17 @@ const pointsData = JSON.parse(serverPointsData);
 
 document.addEventListener('DOMContentLoaded', function() {
     // Crea il grafico
+    // Crea il grafico
     const chartDiv = document.getElementById('speed-chart');
     
     const trace = {
         x: pointsData.map(point => point.distance),
         y: pointsData.map(point => point.speed),
-        mode: 'lines+markers',
+        mode: 'lines',  // MODIFICATO: solo linee, niente markers
         name: 'Velocità',
         line: {
             color: '#007bff',
             width: 2
-        },
-        marker: {
-            size: 6,
-            color: '#007bff'
         },
         hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
     };
@@ -172,7 +169,37 @@ document.addEventListener('DOMContentLoaded', function() {
         tableBody.appendChild(row);
     });
     
-    // Aggiungi evento per click sul grafico
+    // NUOVO: Gestione navigazione con tastiera
+    document.addEventListener('keydown', function(e) {
+        // Verifica che il focus non sia su un input o textarea
+        if (document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA' || 
+            document.activeElement.tagName === 'SELECT') {
+            return;
+        }
+        
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            if (selectedPointIndex === null) {
+                // Nessun punto selezionato, seleziona il primo
+                selectPoint(0);
+            } else if (selectedPointIndex < pointsData.length - 1) {
+                // Vai al punto successivo
+                selectPoint(selectedPointIndex + 1);
+            }
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            if (selectedPointIndex === null) {
+                // Nessun punto selezionato, seleziona l'ultimo
+                selectPoint(pointsData.length - 1);
+            } else if (selectedPointIndex > 0) {
+                // Vai al punto precedente
+                selectPoint(selectedPointIndex - 1);
+            }
+        }
+    });
+    
+    // MODIFICATO: Click sul grafico migliorato
     chartDiv.on('plotly_click', function(data) {
         const clickedPointX = data.points[0].x;
         
@@ -191,8 +218,10 @@ document.addEventListener('DOMContentLoaded', function() {
         selectPoint(closestIndex);
     });
     
-    // Funzione per selezionare un punto e aggiornare UI
+    // MODIFICATO: Funzione per selezionare un punto e aggiornare UI
     function selectPoint(index) {
+        selectedPointIndex = index;
+        
         // Resetta tutte le righe
         document.querySelectorAll('.table-row').forEach(row => {
             row.classList.remove('active');
@@ -202,11 +231,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedRow = document.getElementById(`row-${index}`);
         selectedRow.classList.add('active');
         
-        // Scrolls alla riga
-        selectedRow.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-        });
+        // Scorri solo all'interno del container della tabella
+        const tableContainer = document.getElementById('data-table');
+        if (tableContainer) {
+            const rowTop = selectedRow.offsetTop;
+            const containerHeight = tableContainer.clientHeight;
+            const scrollPosition = rowTop - (containerHeight / 2);
+            tableContainer.scrollTop = scrollPosition;
+        }
         
         // Aggiorna dettagli del punto
         const point = pointsData[index];
@@ -214,8 +246,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calcola accelerazione media
         let avgAcceleration = 0;
         if (point.time > 0) {
-            const startSpeed = 0; // Assume velocità iniziale zero
-            const endSpeed = point.speed / 3.6; // Converti in m/s
+            const startSpeed = 0;
+            const endSpeed = point.speed / 3.6;
             avgAcceleration = (endSpeed - startSpeed) / point.time;
         }
         
@@ -239,22 +271,21 @@ document.addEventListener('DOMContentLoaded', function() {
         highlightPointOnChart(index);
     }
     
-    // Funzione per evidenziare il punto sul grafico
+    // MODIFICATO: Funzione per evidenziare il punto sul grafico
     function highlightPointOnChart(index) {
-        selectedPointIndex = index;
         const point = pointsData[index];
         
-        // Definisci la linea verticale
+        // Definisci la linea verticale ROSSA
         const verticalLine = {
             type: 'line',
             x0: point.distance,
             y0: 0,
             x1: point.distance,
-            y1: Math.max(...pointsData.map(p => p.speed)) * 1.1, // Un po' oltre il massimo
+            y1: Math.max(...pointsData.map(p => p.speed)) * 1.1,
             line: {
-                color: 'rgba(255, 0, 0, 0.5)',
-                width: 1,
-                dash: 'dot'
+                color: 'red',  // MODIFICATO: linea rossa
+                width: 2,      // MODIFICATO: più spessa
+                dash: 'solid'  // MODIFICATO: linea continua
             }
         };
         
@@ -263,16 +294,16 @@ document.addEventListener('DOMContentLoaded', function() {
             'shapes': [verticalLine]
         });
         
-        // Crea un nuovo set di dati per il punto selezionato
+        // Crea un nuovo set di dati per il punto selezionato ROSSO
         const selectedTrace = {
             x: [point.distance],
             y: [point.speed],
             mode: 'markers',
             marker: {
-                color: 'red',
-                size: 10,
+                color: 'red',    // MODIFICATO: punto rosso
+                size: 12,        // MODIFICATO: più grande
                 line: {
-                    color: 'white',
+                    color: 'darkred',  // MODIFICATO: bordo rosso scuro
                     width: 2
                 }
             },
@@ -280,8 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
             hoverinfo: 'none'
         };
         
-        // Aggiorna il grafico con il nuovo set di dati
-        // Se c'è già un punto evidenziato, lo sostituiamo
+        // Rimuovi eventuali punti evidenziati esistenti
         if (chartDiv.data.length > 1) {
             Plotly.deleteTraces(chartDiv, 1);
         }

@@ -2,6 +2,96 @@
 
 {% block title %}SpeedChart - Visualizza Dati{% endblock %}
 
+{% block styles %}
+<style>
+    /* Stili per il filtro piloti con tag */
+    .pilots-filter-container {
+        position: relative;
+    }
+    
+    .pilots-input-container {
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        min-height: 2.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        align-items: center;
+        cursor: text;
+    }
+    
+    .pilots-input-container:focus-within {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .pilot-tag {
+        background-color: #0d6efd;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .pilot-tag .remove-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    
+    .pilot-tag .remove-btn:hover {
+        opacity: 0.7;
+    }
+    
+    .pilots-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 150px;
+        padding: 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ced4da;
+        border-top: none;
+        border-radius: 0 0 0.375rem 0.375rem;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .suggestion-item {
+        padding: 0.5rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
@@ -23,22 +113,25 @@
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Cerca per nome prova o pilota...">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Cerca per nome prova...">
                 </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="pilotaFilter">
-                    <option value="">Tutti i piloti</option>
-                    {% for spingitore in spingitori %}
-                        <option value="{{ spingitore.id }}">{{ spingitore.nome_completo() }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <input type="month" class="form-select" id="dataFilter" placeholder="Filtra per data">
+            <div class="col-md-4">
+                <label class="form-label">Filtra per Spingitori</label>
+                <div class="pilots-filter-container">
+                    <div class="pilots-input-container" id="pilotsContainer">
+                        <input type="text" class="pilots-input" id="pilotsInput" placeholder="Digita il nome di un pilota...">
+                    </div>
+                    <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
+                </div>
             </div>
             <div class="col-md-2">
-                <button class="btn btn-secondary w-100" id="resetFilters">
+                <label class="form-label">Filtra per mese</label>
+                <input type="month" class="form-control" id="dataFilter">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-secondary w-100 d-block" id="resetFilters">
                     Reset
                 </button>
             </div>
@@ -54,7 +147,7 @@
                     <tr>
                         <th>Nome Prova</th>
                         <th>Data</th>
-                        <th>Pilota</th>
+                        <th>Spingitori</th>
                         <th>Distanza</th>
                         <th>Note</th>
                         <th>Azioni</th>
@@ -64,13 +157,13 @@
                     {% for race in races %}
                     <tr 
                         data-name="{{ race.name.lower() }}" 
-                        data-pilota="{{ race.spingitore.nome_completo().lower() if race.spingitore else '' }}"
-                        data-pilota-id="{{ race.spingitore_id if race.spingitore_id else '' }}"
+                        data-pilota="{{ race.get_spingitori_names().lower() }}"
+                        data-piloti-ids="{{ race.get_spingitori_ids_string() }}"
                         data-date="{{ race.date.strftime('%Y-%m') }}"
                     >
                         <td>{{ race.name }}</td>
                         <td>{{ race.date.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ race.spingitore.nome_completo() if race.spingitore else 'N/A' }}</td>
+                        <td>{{ race.get_spingitori_names() or 'N/A' }}</td>
                         <td>
                             {% set last_point = race.data_points|sort(attribute='distance')|last %}
                             {% if last_point %}
@@ -95,109 +188,201 @@
                                         data-id="{{ race.id }}" 
                                         data-nome="{{ race.name }}">
                                     <i class="bi bi-trash"></i> Elimina
-                               </button>
-                           </div>
-                       </td>
-                   </tr>
-                   {% else %}
-                   <tr>
-                       <td colspan="6" class="text-center">
-                           Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
-                       </td>
-                   </tr>
-                   {% endfor %}
-               </tbody>
-           </table>
-       </div>
-   </div>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Elimina Corsa -->
 <div class="modal fade" id="eliminaCorsa" tabindex="-1" aria-labelledby="eliminaCorsaLabel" aria-hidden="true">
-   <div class="modal-dialog">
-       <div class="modal-content">
-           <div class="modal-header">
-               <h5 class="modal-title" id="eliminaCorsaLabel">Conferma eliminazione</h5>
-               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-           </div>
-           <form method="POST" action="{{ url_for('main.elimina_corsa') }}">
-               <input type="hidden" id="elimina_corsa_id" name="id">
-               <div class="modal-body">
-                   <p>Sei sicuro di voler eliminare la prova <strong id="elimina_corsa_nome"></strong>?</p>
-                   <p class="text-danger">Questa azione non può essere annullata e verranno eliminati tutti i dati associati.</p>
-               </div>
-               <div class="modal-footer">
-                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                   <button type="submit" class="btn btn-danger">Elimina</button>
-               </div>
-           </form>
-       </div>
-   </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminaCorsaLabel">Conferma eliminazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.elimina_corsa') }}">
+                <input type="hidden" id="elimina_corsa_id" name="id">
+                <div class="modal-body">
+                    <p>Sei sicuro di voler eliminare la prova <strong id="elimina_corsa_nome"></strong>?</p>
+                    <p class="text-danger">Questa azione non può essere annullata e verranno eliminati tutti i dati associati.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-danger">Elimina</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+
+<!-- Dati dei piloti per JavaScript -->
+<script type="application/json" id="pilots-data">
+    {{ spingitori_data|tojson|safe }}
+</script>
 {% endblock %}
 
 {% block scripts %}
 <script>
-   document.addEventListener('DOMContentLoaded', function() {
-       const searchInput = document.getElementById('searchInput');
-       const pilotaFilter = document.getElementById('pilotaFilter');
-       const dataFilter = document.getElementById('dataFilter');
-       const resetFiltersBtn = document.getElementById('resetFilters');
-       const tableRows = document.querySelectorAll('#corseDatiTable tbody tr[data-name]');
-       
-       // Funzione per filtrare la tabella
-       function filterTable() {
-           const searchText = searchInput.value.toLowerCase();
-           const pilotaId = pilotaFilter.value;
-           const dataValue = dataFilter.value;
-           
-           tableRows.forEach(row => {
-               const name = row.getAttribute('data-name');
-               const pilota = row.getAttribute('data-pilota');
-               const rowPilotaId = row.getAttribute('data-pilota-id');
-               const date = row.getAttribute('data-date');
-               
-               const matchSearch = name.includes(searchText) || pilota.includes(searchText);
-               const matchPilota = !pilotaId || rowPilotaId === pilotaId;
-               const matchDate = !dataValue || date === dataValue;
-               
-               if (matchSearch && matchPilota && matchDate) {
-                   row.style.display = '';
-               } else {
-                   row.style.display = 'none';
-               }
-           });
-       }
-       
-       // Eventi per filtri
-       searchInput.addEventListener('input', filterTable);
-       pilotaFilter.addEventListener('change', filterTable);
-       dataFilter.addEventListener('change', filterTable);
-       
-       // Reset filtri
-       resetFiltersBtn.addEventListener('click', function() {
-           searchInput.value = '';
-           pilotaFilter.value = '';
-           dataFilter.value = '';
-           
-           tableRows.forEach(row => {
-               row.style.display = '';
-           });
-       });
-       
-       // Setup per il modal di eliminazione
-       const eliminaCorsaModal = document.getElementById('eliminaCorsa');
-       eliminaCorsaModal.addEventListener('show.bs.modal', function (event) {
-           const button = event.relatedTarget;
-           const id = button.getAttribute('data-id');
-           const nome = button.getAttribute('data-nome');
-           
-           const modalIdInput = eliminaCorsaModal.querySelector('#elimina_corsa_id');
-           const modalNomeSpan = eliminaCorsaModal.querySelector('#elimina_corsa_nome');
-           
-           modalIdInput.value = id;
-           modalNomeSpan.textContent = nome;
-       });
-   });
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const dataFilter = document.getElementById('dataFilter');
+        const resetFiltersBtn = document.getElementById('resetFilters');
+        const tableRows = document.querySelectorAll('#corseDatiTable tbody tr[data-name]');
+        
+        // Sistema di filtro piloti con tag
+        const pilotsContainer = document.getElementById('pilotsContainer');
+        const pilotsInput = document.getElementById('pilotsInput');
+        const suggestionsDropdown = document.getElementById('suggestionsDropdown');
+        const pilotsData = JSON.parse(document.getElementById('pilots-data').textContent);
+        
+        let selectedPilots = []; // Array di oggetti {id: '', name: ''}
+        
+        // Gestione sistema piloti con tag
+        pilotsInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            if (query.length === 0) {
+                suggestionsDropdown.style.display = 'none';
+                return;
+            }
+            
+            const suggestions = pilotsData.filter(pilot => 
+                pilot.nome.toLowerCase().includes(query) || 
+                (pilot.cognome && pilot.cognome.toLowerCase().includes(query))
+            ).filter(pilot => 
+                !selectedPilots.some(selected => selected.id === pilot.id)
+            );
+            
+            if (suggestions.length > 0) {
+                suggestionsDropdown.innerHTML = suggestions.map(pilot => 
+                    `<div class="suggestion-item" data-pilot-id="${pilot.id}" data-pilot-name="${pilot.nome} ${pilot.cognome || ''}">
+                        ${pilot.nome} ${pilot.cognome || ''}
+                    </div>`
+                ).join('');
+                suggestionsDropdown.style.display = 'block';
+            } else {
+                suggestionsDropdown.style.display = 'none';
+            }
+        });
+        
+        // Click sui suggerimenti
+        suggestionsDropdown.addEventListener('click', function(e) {
+            if (e.target.classList.contains('suggestion-item')) {
+                const pilotId = e.target.getAttribute('data-pilot-id');
+                const pilotName = e.target.getAttribute('data-pilot-name');
+                
+                addPilotTag(pilotId, pilotName);
+                pilotsInput.value = '';
+                suggestionsDropdown.style.display = 'none';
+                filterTable();
+            }
+        });
+        
+        function addPilotTag(id, name) {
+            selectedPilots.push({id: id, name: name});
+            
+            const tag = document.createElement('div');
+            tag.className = 'pilot-tag';
+            tag.innerHTML = `
+                ${name}
+                <button type="button" class="remove-btn" data-pilot-id="${id}">&times;</button>
+            `;
+            
+            pilotsContainer.insertBefore(tag, pilotsInput);
+            
+            // Gestisci rimozione tag
+            tag.querySelector('.remove-btn').addEventListener('click', function() {
+                selectedPilots = selectedPilots.filter(p => p.id !== id);
+                tag.remove();
+                filterTable();
+            });
+        }
+        
+        // Click sul container per focus input
+        pilotsContainer.addEventListener('click', function() {
+            pilotsInput.focus();
+        });
+        
+        // Nascondi suggerimenti quando si clicca fuori
+        document.addEventListener('click', function(e) {
+            if (!pilotsContainer.contains(e.target)) {
+                suggestionsDropdown.style.display = 'none';
+            }
+        });
+        
+        // Funzione per filtrare la tabella
+        // Funzione per filtrare la tabella
+        function filterTable() {
+            const searchText = searchInput.value.toLowerCase();
+            const selectedPilotIds = selectedPilots.map(p => p.id);
+            const dataValue = dataFilter.value;
+            
+            tableRows.forEach(row => {
+                const name = row.getAttribute('data-name');
+                const pilota = row.getAttribute('data-pilota');
+                const rowPilotiIds = row.getAttribute('data-piloti-ids').split(',');
+                const date = row.getAttribute('data-date');
+                
+                const matchSearch = name.includes(searchText) || pilota.includes(searchText);
+                
+                // Match se non ci sono filtri piloti o se TUTTI i piloti selezionati sono presenti nella corsa (logica AND)
+                const matchPilota = selectedPilotIds.length === 0 || 
+                                   selectedPilotIds.every(id => rowPilotiIds.includes(id));
+                                   
+                const matchDate = !dataValue || date === dataValue;
+                
+                if (matchSearch && matchPilota && matchDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // Eventi per filtri
+        searchInput.addEventListener('input', filterTable);
+        dataFilter.addEventListener('change', filterTable);
+        
+        // Reset filtri
+        resetFiltersBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            dataFilter.value = '';
+            selectedPilots = [];
+            
+            // Rimuovi tutti i tag piloti
+            const tags = pilotsContainer.querySelectorAll('.pilot-tag');
+            tags.forEach(tag => tag.remove());
+            
+            tableRows.forEach(row => {
+                row.style.display = '';
+            });
+        });
+        
+        // Setup per il modal di eliminazione
+        const eliminaCorsaModal = document.getElementById('eliminaCorsa');
+        eliminaCorsaModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+            const nome = button.getAttribute('data-nome');
+            
+            const modalIdInput = eliminaCorsaModal.querySelector('#elimina_corsa_id');
+            const modalNomeSpan = eliminaCorsaModal.querySelector('#elimina_corsa_nome');
+            
+            modalIdInput.value = id;
+            modalNomeSpan.textContent = nome;
+        });
+    });
 </script>
 {% endblock %}

@@ -95,7 +95,7 @@ def init_dashboard(server):
                         'id': race.id,
                         'name': race.name,
                         'date': race.date.strftime('%d/%m/%Y %H:%M'),
-                        'driver': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+                        'driver': race.get_spingitori_names(),
                         'vehicle': getattr(race, 'vehicle', ''),
                         'notes': race.notes or ''
                     }

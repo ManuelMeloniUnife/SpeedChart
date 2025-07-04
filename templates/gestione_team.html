@@ -42,9 +42,9 @@
                         <td>{{ spingitore.ruolo or "" }}</td>
                         <td>
                             {% if spingitore.attivo %}
-                            <span class="badge bg-success">Schierato</span>
+                            <span class="badge bg-success">Attivo</span>
                             {% else %}
-                            <span class="badge bg-warning">A Riposo</span>
+                            <span class="badge bg-warning">Disattivato</span>
                             {% endif %}
                         </td>
                         <td>
@@ -141,7 +141,7 @@
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="modifica_attivo" name="attivo" value="1">
-                            <label class="form-check-label" for="modifica_attivo">Schierato</label>
+                            <label class="form-check-label" for="modifica_attivo">Attivo</label>
                         </div>
                     </div>
                 </div>

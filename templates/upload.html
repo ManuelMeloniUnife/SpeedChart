@@ -32,23 +32,18 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="spingitore_id" class="form-label">Pilota</label>
-                        <select class="form-select" id="spingitore_id" name="spingitore_id" required>
-                            <option value="">Seleziona un pilota</option>
+                        <label for="spingitori_ids" class="form-label">Spingitori</label>
+                        <select class="form-select" id="spingitori_ids" name="spingitori_ids" multiple required>
                             {% for spingitore in spingitori_attivi %}
                                 <option value="{{ spingitore.id }}">{{ spingitore.nome_completo() }}</option>
                             {% endfor %}
                         </select>
+                        <div class="form-text">Tieni premuto CTRL per selezionare più Spingitori</div>
                         {% if not spingitori_attivi %}
                             <div class="form-text text-warning">
                                 Non sono presenti spingitori attivi. <a href="{{ url_for('main.gestione_team') }}">Aggiungi uno spingitore</a> prima di caricare dati.
                             </div>
                         {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">Note</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
                     </div>
                     
                     <button type="submit" class="btn btn-primary" {% if not spingitori_attivi %}disabled{% endif %}>Carica e analizza</button>

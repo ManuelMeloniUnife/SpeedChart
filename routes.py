@@ -365,13 +365,14 @@ def elimina_spingitore():
         flash('Spingitore non trovato', 'danger')
         return redirect(url_for('main.gestione_team'))
     
-    # Trova le corse associate
-    corse_associate = Race.query.filter_by(spingitore_id=spingitore_id).all()
+    # Trova le corse associate usando la relazione many-to-many
+    corse_associate = spingitore.corse.all()
     num_corse = len(corse_associate)
     
-    # Elimina tutte le corse associate e i loro data points
+    # Rimuovi lo spingitore da tutte le corse associate
+    # Non eliminiamo le corse, ma rimuoviamo solo l'associazione
     for corsa in corse_associate:
-        db.session.delete(corsa)
+        corsa.spingitori.remove(spingitore)
     
     # Elimina lo spingitore
     db.session.delete(spingitore)
@@ -379,7 +380,7 @@ def elimina_spingitore():
     
     # Messaggio di conferma
     if num_corse > 0:
-        flash(f'Spingitore {spingitore.nome_completo()} e {num_corse} prove associate eliminate con successo!', 'success')
+        flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo! Rimosso da {num_corse} prove.', 'success')
     else:
         flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo!', 'success')
     

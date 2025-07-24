@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Race, DataPoint, Spingitore, RaceSpingitore
 from utils.file_parser import parse_race_file
 from datetime import datetime, date
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 
 main = Blueprint('main', __name__)
 
@@ -15,8 +15,9 @@ def index():
 
 @main.route('/upload', methods=['GET', 'POST'])
 def upload():
-    # Ottieni gli spingitori attivi per il form
-    spingitori_attivi = Spingitore.query.filter_by(attivo=True).order_by(Spingitore.nome).all()
+    # Ottieni piloti e spingitori separatamente
+    piloti = Spingitore.query.filter_by(ruolo='Pilota').order_by(Spingitore.nome).all()
+    spingitori = Spingitore.query.filter_by(ruolo='Spingitore').order_by(Spingitore.nome).all()
     
     # Data odierna per il campo data
     today = date.today().strftime('%Y-%m-%d')
@@ -38,20 +39,36 @@ def upload():
             
             # Ottieni i dati dal form
             race_name = request.form.get('race_name', '')
-            spingitori_order = request.form.get('spingitori_order', '')  # Nuovo campo per l'ordine
+            pilota_id = request.form.get('pilota_id', '')  # ID del pilota (obbligatorio)
+            spingitori_order = request.form.get('spingitori_order', '')  # IDs degli spingitori (opzionale)
             race_date = request.form.get('date', '')
             notes = request.form.get('notes', '')
             
-            # Parsa l'ordine degli spingitori
-            if not race_name or not spingitori_order:
-                flash('Nome della prova e almeno uno spingitore sono obbligatori', 'danger')
+            # Validazione
+            if not race_name or not pilota_id:
+                flash('Nome della prova e pilota sono obbligatori', 'danger')
                 return redirect(request.url)
             
-            try:
-                spingitori_ids = [int(id_str) for id_str in spingitori_order.split(',') if id_str.strip()]
-            except ValueError:
-                flash('Errore nel formato dell\'ordine spingitori', 'danger')
+            # Verifica che il pilota esista e sia effettivamente un pilota
+            pilota = Spingitore.query.filter_by(id=pilota_id, ruolo='Pilota').first()
+            if not pilota:
+                flash('Pilota non valido', 'danger')
                 return redirect(request.url)
+            
+            # Parsa l'ordine degli spingitori (opzionale)
+            spingitori_ids = []
+            if spingitori_order:
+                try:
+                    spingitori_ids = [int(id_str) for id_str in spingitori_order.split(',') if id_str.strip()]
+                    # Verifica che tutti gli ID siano di spingitori validi
+                    for spingitore_id in spingitori_ids:
+                        spingitore = Spingitore.query.filter_by(id=spingitore_id, ruolo='Spingitore').first()
+                        if not spingitore:
+                            flash(f'Spingitore con ID {spingitore_id} non valido', 'danger')
+                            return redirect(request.url)
+                except ValueError:
+                    flash('Errore nel formato dell\'ordine spingitori', 'danger')
+                    return redirect(request.url)
             
             # Parsa il file
             try:
@@ -74,16 +91,22 @@ def upload():
                 db.session.add(race)
                 db.session.flush()  # Per ottenere l'ID della corsa
                 
-                # Aggiungi gli spingitori con l'ordine specificato
+                # Aggiungi il pilota (sempre al primo posto, ordine 0)
+                race_pilota = RaceSpingitore(
+                    race_id=race.id,
+                    spingitore_id=pilota_id,
+                    ordine_esecuzione=0  # Il pilota ha sempre ordine 0
+                )
+                db.session.add(race_pilota)
+                
+                # Aggiungi gli spingitori con l'ordine specificato (se presenti)
                 for ordine, spingitore_id in enumerate(spingitori_ids, 1):
-                    spingitore = Spingitore.query.get(spingitore_id)
-                    if spingitore:
-                        race_spingitore = RaceSpingitore(
-                            race_id=race.id,
-                            spingitore_id=spingitore_id,
-                            ordine_esecuzione=ordine
-                        )
-                        db.session.add(race_spingitore)
+                    race_spingitore = RaceSpingitore(
+                        race_id=race.id,
+                        spingitore_id=spingitore_id,
+                        ordine_esecuzione=ordine  # Gli spingitori partono da ordine 1
+                    )
+                    db.session.add(race_spingitore)
                 
                 # Aggiungi i punti dati
                 for point in parsed_data['data_points']:
@@ -108,7 +131,8 @@ def upload():
             return redirect(request.url)
     
     return render_template('upload.html', 
-                          spingitori_attivi=spingitori_attivi, 
+                          piloti=piloti,
+                          spingitori=spingitori, 
                           today=today)
 
 @main.route('/visualizza-dati')
@@ -116,19 +140,8 @@ def visualizza_dati():
     # Ottieni tutti gli spingitori - usati per filtro
     spingitori = Spingitore.query.order_by(Spingitore.nome).all()
     
-    # Ottieni tutte le corse dove TUTTI gli spingitori sono attivi
-    races = Race.query.all()
-    
-    # Filtra le corse per mostrare solo quelle con tutti gli spingitori attivi
-    active_races = []
-    for race in races:
-        all_active = True
-        for spingitore in race.spingitori:
-            if not spingitore.attivo:
-                all_active = False
-                break
-        if all_active and race.spingitori.count() > 0:
-            active_races.append(race)
+    # Ottieni tutte le corse (rimuoviamo il filtro per spingitori attivi)
+    races = Race.query.order_by(Race.date.desc()).all()
     
     # Converti gli spingitori in dizionari per la serializzazione JSON
     spingitori_data = []
@@ -141,7 +154,7 @@ def visualizza_dati():
         })
             
     return render_template('visualizza_dati.html', 
-                          races=active_races, 
+                          races=races, 
                           spingitori=spingitori, 
                           spingitori_data=spingitori_data)
 
@@ -163,7 +176,8 @@ def view_race_direct(race_id):
         'id': race.id,
         'name': race.name,
         'date': race.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race.get_spingitori_names(),  # MODIFICA QUI: usa get_spingitori_names() invece di spingitore
+        'pilota': race.get_pilota_name(),  # Solo il pilota
+        'spingitori': race.get_spingitori_names(),  # Solo gli spingitori
         'notes': race.notes
     }
     
@@ -184,22 +198,7 @@ def view_race_direct(race_id):
 @main.route('/compare')
 def compare():
     """Pagina per confrontare due corse"""
-    races = Race.query.all()
-    
-    # Filtra le corse per mostrare solo quelle con tutti gli spingitori attivi
-    active_races = []
-    for race in races:
-        all_active = True
-        for spingitore in race.spingitori:
-            if not spingitore.attivo:
-                all_active = False
-                break
-        if all_active and race.spingitori.count() > 0:
-            active_races.append(race)
-    
-    # Ordina per data
-    active_races.sort(key=lambda x: x.date, reverse=True)
-    
+    races = Race.query.order_by(Race.date.desc()).all()
     spingitori = Spingitore.query.order_by(Spingitore.nome).all()
     
     # Converti gli spingitori in dizionari per la serializzazione JSON
@@ -213,7 +212,7 @@ def compare():
         })
     
     return render_template('compare.html', 
-                          races=active_races, 
+                          races=races, 
                           spingitori=spingitori,
                           spingitori_data=spingitori_data)
 
@@ -239,7 +238,8 @@ def view_comparison_direct(race1_id, race2_id):
         'id': race1.id,
         'name': race1.name,
         'date': race1.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race1.get_spingitori_names(),  # Cambiato qui
+        'pilota': race1.get_pilota_name(),  # Solo il pilota
+        'spingitori': race1.get_spingitori_names(),  # Solo gli spingitori
         'notes': race1.notes
     }
     
@@ -247,7 +247,8 @@ def view_comparison_direct(race1_id, race2_id):
         'id': race2.id,
         'name': race2.name,
         'date': race2.date.strftime('%d/%m/%Y %H:%M'),
-        'driver': race2.get_spingitori_names(),  # Cambiato qui
+        'pilota': race2.get_pilota_name(),  # Solo il pilota
+        'spingitori': race2.get_spingitori_names(),  # Solo gli spingitori
         'notes': race2.notes
     }
     
@@ -280,8 +281,9 @@ def view_comparison_direct(race1_id, race2_id):
 @main.route('/gestione-team')
 def gestione_team():
     """Pagina per la gestione degli spingitori del team"""
-    spingitori = Spingitore.query.order_by(Spingitore.nome).all()
-    return render_template('gestione_team.html', spingitori=spingitori)
+    piloti = Spingitore.query.filter_by(ruolo='Pilota').order_by(Spingitore.nome).all()
+    spingitori = Spingitore.query.filter_by(ruolo='Spingitore').order_by(Spingitore.nome).all()
+    return render_template('gestione_team.html', piloti=piloti, spingitori=spingitori)
 
 @main.route('/aggiungi-spingitore', methods=['POST'])
 def aggiungi_spingitore():
@@ -294,18 +296,21 @@ def aggiungi_spingitore():
         flash('Il nome è obbligatorio', 'danger')
         return redirect(url_for('main.gestione_team'))
     
+    if ruolo not in ['Pilota', 'Spingitore']:
+        flash('Ruolo non valido. Seleziona Pilota o Spingitore.', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
     # Crea un nuovo spingitore
     spingitore = Spingitore(
         nome=nome,
         cognome=cognome,
-        ruolo=ruolo,
-        attivo=True
+        ruolo=ruolo
     )
     
     db.session.add(spingitore)
     db.session.commit()
     
-    flash(f'Spingitore {nome} {cognome} aggiunto con successo!', 'success')
+    flash(f'{ruolo} {nome} {cognome} aggiunto con successo!', 'success')
     return redirect(url_for('main.gestione_team'))
 
 @main.route('/modifica-spingitore', methods=['POST'])
@@ -315,10 +320,13 @@ def modifica_spingitore():
     nome = request.form.get('nome', '').strip()
     cognome = request.form.get('cognome', '').strip()
     ruolo = request.form.get('ruolo', '').strip()
-    attivo = 'attivo' in request.form
     
     if not spingitore_id or not nome:
         flash('ID spingitore e nome sono obbligatori', 'danger')
+        return redirect(url_for('main.gestione_team'))
+    
+    if ruolo not in ['Pilota', 'Spingitore']:
+        flash('Ruolo non valido. Seleziona Pilota o Spingitore.', 'danger')
         return redirect(url_for('main.gestione_team'))
     
     # Trova lo spingitore
@@ -331,69 +339,77 @@ def modifica_spingitore():
     spingitore.nome = nome
     spingitore.cognome = cognome
     spingitore.ruolo = ruolo
-    spingitore.attivo = attivo
     
     db.session.commit()
     
-    flash(f'Spingitore {nome} {cognome} aggiornato con successo!', 'success')
-    return redirect(url_for('main.gestione_team'))
-
-@main.route('/cambia-stato-spingitore', methods=['POST'])
-def cambia_stato_spingitore():
-    """Cambia lo stato di uno spingitore tra Schierato e A Riposo"""
-    spingitore_id = request.form.get('id')
-    nuovo_stato = request.form.get('attivo') == '1'
-    
-    if not spingitore_id:
-        flash('ID spingitore obbligatorio', 'danger')
-        return redirect(url_for('main.gestione_team'))
-    
-    # Trova lo spingitore
-    spingitore = Spingitore.query.get(spingitore_id)
-    if not spingitore:
-        flash('Spingitore non trovato', 'danger')
-        return redirect(url_for('main.gestione_team'))
-    
-    # Aggiorna lo stato
-    spingitore.attivo = nuovo_stato
-    db.session.commit()
-    
-    stato_str = "Schierato" if nuovo_stato else "A Riposo"
-    flash(f'Lo spingitore {spingitore.nome_completo()} è ora {stato_str}.', 'success')
+    flash(f'{ruolo} {nome} {cognome} aggiornato con successo!', 'success')
     return redirect(url_for('main.gestione_team'))
 
 @main.route('/elimina-spingitore', methods=['POST'])
 def elimina_spingitore():
-    """Elimina un spingitore dal team e tutte le corse associate"""
+    """Elimina un spingitore dal team e tutte le prove in cui è coinvolto"""
     spingitore_id = request.form.get('id')
     
     if not spingitore_id:
         flash('ID spingitore obbligatorio', 'danger')
         return redirect(url_for('main.gestione_team'))
     
-    # Trova lo spingitore
+    # Trova lo spingitore per ottenere il nome
     spingitore = Spingitore.query.get(spingitore_id)
     if not spingitore:
         flash('Spingitore non trovato', 'danger')
         return redirect(url_for('main.gestione_team'))
     
-    # Trova le corse associate usando la nuova tabella di relazione
-    corse_associate = db.session.query(RaceSpingitore).filter_by(spingitore_id=spingitore_id).all()
-    num_corse = len(corse_associate)
+    nome_completo = spingitore.nome_completo()
     
-    # Rimuovi tutte le associazioni con le corse
-    for associazione in corse_associate:
-        db.session.delete(associazione)
+    try:
+        # Usa SQL diretto per evitare problemi con SQLAlchemy ORM
+        # Prima trova le prove associate
+        result = db.session.execute(
+            text("SELECT race_id FROM race_spingitore WHERE spingitore_id = :spingitore_id"),
+            {"spingitore_id": spingitore_id}
+        )
+        race_ids = [row[0] for row in result.fetchall()]
+        num_prove = len(race_ids)
+        
+        # Elimina prima i data_points delle prove associate
+        if race_ids:
+            race_ids_str = ','.join(map(str, race_ids))
+            db.session.execute(
+                text(f"DELETE FROM data_point WHERE race_id IN ({race_ids_str})")
+            )
+        
+        # Elimina le associazioni race_spingitore
+        db.session.execute(
+            text("DELETE FROM race_spingitore WHERE spingitore_id = :spingitore_id"),
+            {"spingitore_id": spingitore_id}
+        )
+        
+        # Elimina le prove
+        if race_ids:
+            race_ids_str = ','.join(map(str, race_ids))
+            db.session.execute(
+                text(f"DELETE FROM race WHERE id IN ({race_ids_str})")
+            )
+        
+        # Elimina lo spingitore
+        db.session.execute(
+            text("DELETE FROM spingitore WHERE id = :spingitore_id"),
+            {"spingitore_id": spingitore_id}
+        )
+        
+        # Commit tutto
+        db.session.commit()
+        
+        # Messaggio di conferma
+        if num_prove > 0:
+            flash(f'Spingitore {nome_completo} eliminato con successo! Eliminate anche {num_prove} prove associate.', 'success')
+        else:
+            flash(f'Spingitore {nome_completo} eliminato con successo!', 'success')
     
-    # Elimina lo spingitore
-    db.session.delete(spingitore)
-    db.session.commit()
-    
-    # Messaggio di conferma
-    if num_corse > 0:
-        flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo! Rimosso da {num_corse} prove.', 'success')
-    else:
-        flash(f'Spingitore {spingitore.nome_completo()} eliminato con successo!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Errore durante l\'eliminazione: {str(e)}', 'danger')
     
     return redirect(url_for('main.gestione_team'))
 
@@ -406,7 +422,7 @@ def elimina_corsa():
         flash('ID corsa obbligatorio', 'danger')
         return redirect(url_for('main.visualizza_dati'))
     
-    # Trova la corsa
+    # Trova la corsa per ottenere il nome
     race = Race.query.get(race_id)
     if not race:
         flash('Corsa non trovata', 'danger')
@@ -415,11 +431,35 @@ def elimina_corsa():
     # Memorizza il nome per il messaggio
     race_name = race.name
     
-    # Elimina la corsa (i data_points saranno eliminati automaticamente grazie a cascade="all, delete-orphan")
-    db.session.delete(race)
-    db.session.commit()
+    try:
+        # Usa SQL diretto per evitare problemi con SQLAlchemy ORM
+        # Elimina i data_points
+        db.session.execute(
+            text("DELETE FROM data_point WHERE race_id = :race_id"),
+            {"race_id": race_id}
+        )
+        
+        # Elimina le associazioni race_spingitore
+        db.session.execute(
+            text("DELETE FROM race_spingitore WHERE race_id = :race_id"),
+            {"race_id": race_id}
+        )
+        
+        # Elimina la corsa
+        db.session.execute(
+            text("DELETE FROM race WHERE id = :race_id"),
+            {"race_id": race_id}
+        )
+        
+        # Commit tutto
+        db.session.commit()
+        
+        flash(f'Prova "{race_name}" eliminata con successo.', 'success')
     
-    flash(f'Prova "{race_name}" eliminata con successo.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Errore durante l\'eliminazione: {str(e)}', 'danger')
+    
     return redirect(url_for('main.visualizza_dati'))
 
 @main.route('/api/races')
@@ -430,7 +470,8 @@ def get_races():
             'id': race.id,
             'name': race.name,
             'date': race.date.strftime('%d/%m/%Y %H:%M'),
-            'pilota': race.spingitore.nome_completo() if race.spingitore else 'N/A',
+            'pilota': race.get_pilota_name(),  # Solo il pilota
+            'spingitori': race.get_spingitori_names(),  # Solo gli spingitori
             'notes': race.notes
         } for race in races
     ]
@@ -438,7 +479,7 @@ def get_races():
 
 @main.route('/api/spingitori')
 def get_spingitori():
-    spingitori = Spingitore.query.filter_by(attivo=True).order_by(Spingitore.nome).all()
+    spingitori = Spingitore.query.order_by(Spingitore.nome).all()
     spingitori_list = [
         {
             'id': spingitore.id,
@@ -460,7 +501,8 @@ def get_race_data(race_id):
             'id': race.id,
             'name': race.name,
             'date': race.date.strftime('%d/%m/%Y %H:%M'),
-            'piloti': race.get_spingitori_names(),
+            'pilota': race.get_pilota_name(),  # Solo il pilota
+            'spingitori': race.get_spingitori_names(),  # Solo gli spingitori
             'notes': race.notes
         },
         'data_points': [

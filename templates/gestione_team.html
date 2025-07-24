@@ -10,13 +10,18 @@
     </div>
     <div class="col-md-4 text-end">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">
-            <i class="bi bi-person-plus-fill"></i> Aggiungi Spingitore
+            <i class="bi bi-person-plus-fill"></i> Aggiungi Membro
         </button>
     </div>
 </div>
 
-<div class="card">
+<!-- Sezione Piloti -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-person-fill-gear"></i> Piloti</h5>
+    </div>
     <div class="card-body">
+        {% if piloti %}
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -24,8 +29,62 @@
                         <th width="5%"></th>
                         <th>Nome</th>
                         <th>Cognome</th>
-                        <th>Ruolo</th>
-                        <th>Status</th>
+                        <th width="15%">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pilota in piloti %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center bg-success rounded-circle text-white" style="width: 36px; height: 36px;">
+                                {{ pilota.nome[0] }}{{ pilota.cognome[0] if pilota.cognome else "" }}
+                            </div>
+                        </td>
+                        <td>{{ pilota.nome }}</td>
+                        <td>{{ pilota.cognome or "" }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modificaSpingitoreModal" 
+                                data-id="{{ pilota.id }}" 
+                                data-nome="{{ pilota.nome }}" 
+                                data-cognome="{{ pilota.cognome or '' }}" 
+                                data-ruolo="{{ pilota.ruolo or '' }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminaSpingitoreModal"
+                                data-id="{{ pilota.id }}" 
+                                data-nome="{{ pilota.nome_completo() }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-person-gear" style="font-size: 2rem;"></i>
+            <p class="mt-2">Nessun pilota nel team</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sezione Spingitori -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-people-fill"></i> Spingitori</h5>
+    </div>
+    <div class="card-body">
+        {% if spingitori %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th width="5%"></th>
+                        <th>Nome</th>
+                        <th>Cognome</th>
                         <th width="15%">Azioni</th>
                     </tr>
                 </thead>
@@ -39,30 +98,13 @@
                         </td>
                         <td>{{ spingitore.nome }}</td>
                         <td>{{ spingitore.cognome or "" }}</td>
-                        <td>{{ spingitore.ruolo or "" }}</td>
-                        <td>
-                            {% if spingitore.attivo %}
-                            <span class="badge bg-success">Attivo</span>
-                            {% else %}
-                            <span class="badge bg-warning">Disattivato</span>
-                            {% endif %}
-                        </td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modificaSpingitoreModal" 
                                 data-id="{{ spingitore.id }}" 
                                 data-nome="{{ spingitore.nome }}" 
                                 data-cognome="{{ spingitore.cognome or '' }}" 
-                                data-ruolo="{{ spingitore.ruolo or '' }}"
-                                data-attivo="{{ '1' if spingitore.attivo else '0' }}">
+                                data-ruolo="{{ spingitore.ruolo or '' }}">
                                 <i class="bi bi-pencil"></i>
-                            </button>
-                            
-                            <!-- Pulsante per cambiare stato "Schierato"/"A Riposo" -->
-                            <button class="btn btn-sm {% if spingitore.attivo %}btn-outline-warning{% else %}btn-outline-success{% endif %}" data-bs-toggle="modal" data-bs-target="#cambiaStatoModal" 
-                                data-id="{{ spingitore.id }}" 
-                                data-nome="{{ spingitore.nome_completo() }}"
-                                data-attivo="{{ '1' if spingitore.attivo else '0' }}">
-                                <i class="bi {% if spingitore.attivo %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
                             </button>
                             
                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminaSpingitoreModal" data-id="{{ spingitore.id }}" data-nome="{{ spingitore.nome_completo() }}">
@@ -70,16 +112,16 @@
                             </button>
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center">
-                            Nessuno spingitore presente. <a href="#" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">Aggiungi il primo spingitore</a>.
-                        </td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-people" style="font-size: 2rem;"></i>
+            <p class="mt-2">Nessuno spingitore nel team</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -102,8 +144,21 @@
                         <input type="text" class="form-control" id="cognome" name="cognome">
                     </div>
                     <div class="mb-3">
-                        <label for="ruolo" class="form-label">Ruolo</label>
-                        <input type="text" class="form-control" id="ruolo" name="ruolo">
+                        <label for="ruolo" class="form-label">Ruolo <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ruolo" id="ruolo_spingitore" value="Spingitore" checked>
+                                <label class="form-check-label" for="ruolo_spingitore">
+                                    Spingitore
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ruolo" id="ruolo_pilota" value="Pilota">
+                                <label class="form-check-label" for="ruolo_pilota">
+                                    Pilota
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -135,13 +190,20 @@
                         <input type="text" class="form-control" id="modifica_cognome" name="cognome">
                     </div>
                     <div class="mb-3">
-                        <label for="modifica_ruolo" class="form-label">Ruolo</label>
-                        <input type="text" class="form-control" id="modifica_ruolo" name="ruolo">
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="modifica_attivo" name="attivo" value="1">
-                            <label class="form-check-label" for="modifica_attivo">Attivo</label>
+                        <label for="modifica_ruolo" class="form-label">Ruolo <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ruolo" id="modifica_ruolo_spingitore" value="Spingitore">
+                                <label class="form-check-label" for="modifica_ruolo_spingitore">
+                                    Spingitore
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ruolo" id="modifica_ruolo_pilota" value="Pilota">
+                                <label class="form-check-label" for="modifica_ruolo_pilota">
+                                    Pilota
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -176,30 +238,6 @@
         </div>
     </div>
 </div>
-
-<!-- Modal Cambio Stato Spingitore -->
-<div class="modal fade" id="cambiaStatoModal" tabindex="-1" aria-labelledby="cambiaStatoModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="cambiaStatoModalLabel">Cambio Stato Spingitore</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" action="{{ url_for('main.cambia_stato_spingitore') }}">
-                <input type="hidden" id="stato_id" name="id">
-                <input type="hidden" id="stato_attivo" name="attivo">
-                <div class="modal-body">
-                    <p>Sei sicuro di voler cambiare lo stato dello spingitore <strong id="stato_nome"></strong>?</p>
-                    <p id="stato_messaggio"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary" id="btn_conferma_stato">Conferma</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -213,19 +251,21 @@
             const nome = button.getAttribute('data-nome');
             const cognome = button.getAttribute('data-cognome');
             const ruolo = button.getAttribute('data-ruolo');
-            const attivo = button.getAttribute('data-attivo') === '1';
             
             const modalIdInput = modificaModal.querySelector('#modifica_id');
             const modalNomeInput = modificaModal.querySelector('#modifica_nome');
             const modalCognomeInput = modificaModal.querySelector('#modifica_cognome');
-            const modalRuoloInput = modificaModal.querySelector('#modifica_ruolo');
-            const modalAttivoInput = modificaModal.querySelector('#modifica_attivo');
             
             modalIdInput.value = id;
             modalNomeInput.value = nome;
             modalCognomeInput.value = cognome;
-            modalRuoloInput.value = ruolo;
-            modalAttivoInput.checked = attivo;
+            
+            // Imposta il radio button corretto per il ruolo
+            if (ruolo === 'Pilota') {
+                modificaModal.querySelector('#modifica_ruolo_pilota').checked = true;
+            } else {
+                modificaModal.querySelector('#modifica_ruolo_spingitore').checked = true;
+            }
         });
         
         // Setup per il modal di eliminazione
@@ -240,40 +280,6 @@
             
             modalIdInput.value = id;
             modalNomeSpan.textContent = nome;
-        });
-        
-        // Setup per il modal di cambio stato
-        const cambiaStatoModal = document.getElementById('cambiaStatoModal');
-        cambiaStatoModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const id = button.getAttribute('data-id');
-            const nome = button.getAttribute('data-nome');
-            const attivo = button.getAttribute('data-attivo') === '1';
-            
-            const modalIdInput = cambiaStatoModal.querySelector('#stato_id');
-            const modalAttivoInput = cambiaStatoModal.querySelector('#stato_attivo');
-            const modalNomeSpan = cambiaStatoModal.querySelector('#stato_nome');
-            const modalMessaggio = cambiaStatoModal.querySelector('#stato_messaggio');
-            const confermaBtn = cambiaStatoModal.querySelector('#btn_conferma_stato');
-            
-            modalIdInput.value = id;
-            modalNomeSpan.textContent = nome;
-            
-            if (attivo) {
-                // Da "Schierato" a "A Riposo"
-                modalAttivoInput.value = '0';
-                modalMessaggio.textContent = "Lo spingitore passerà da \"Schierato\" a \"A Riposo\".";
-                confermaBtn.classList.remove('btn-success');
-                confermaBtn.classList.add('btn-warning');
-                confermaBtn.textContent = 'Metti a Riposo';
-            } else {
-                // Da "A Riposo" a "Schierato"
-                modalAttivoInput.value = '1';
-                modalMessaggio.textContent = "Lo spingitore passerà da \"A Riposo\" a \"Schierato\".";
-                confermaBtn.classList.remove('btn-warning');
-                confermaBtn.classList.add('btn-success');
-                confermaBtn.textContent = 'Schiera';
-            }
         });
     });
 </script>

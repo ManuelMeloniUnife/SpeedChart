@@ -10,13 +10,13 @@ class RaceSpingitore(db.Model):
     __tablename__ = 'race_spingitore'
     
     id = db.Column(db.Integer, primary_key=True)
-    race_id = db.Column(db.Integer, db.ForeignKey('race.id'), nullable=False)
-    spingitore_id = db.Column(db.Integer, db.ForeignKey('spingitore.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('race.id', ondelete='CASCADE'), nullable=False)
+    spingitore_id = db.Column(db.Integer, db.ForeignKey('spingitore.id', ondelete='CASCADE'), nullable=False)
     ordine_esecuzione = db.Column(db.Integer, nullable=False, default=1)  # Ordine nella staffetta
     
     # Relazioni
-    race = db.relationship('Race', backref='race_spingitori_ordered')
-    spingitore = db.relationship('Spingitore', backref='spingitore_races_ordered')
+    race = db.relationship('Race', backref=db.backref('race_spingitori_ordered', cascade='all, delete-orphan'))
+    spingitore = db.relationship('Spingitore', backref=db.backref('spingitore_races_ordered', cascade='all, delete-orphan'))
     
     def __repr__(self):
         return f"RaceSpingitore(race_id={self.race_id}, spingitore_id={self.spingitore_id}, ordine={self.ordine_esecuzione})"
@@ -25,17 +25,24 @@ class Spingitore(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100))
-    ruolo = db.Column(db.String(100))
-    attivo = db.Column(db.Boolean, default=True)
+    ruolo = db.Column(db.String(20), nullable=False, default='Spingitore')  # 'Pilota' o 'Spingitore'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f"Spingitore('{self.nome} {self.cognome}')"
+        return f"Spingitore('{self.nome} {self.cognome}', ruolo='{self.ruolo}')"
     
     def nome_completo(self):
         if self.cognome:
             return f"{self.nome} {self.cognome}"
         return self.nome
+    
+    def is_pilota(self):
+        """Ritorna True se questo elemento è un pilota"""
+        return self.ruolo == 'Pilota'
+    
+    def is_spingitore(self):
+        """Ritorna True se questo elemento è uno spingitore"""
+        return self.ruolo == 'Spingitore'
 
 class Race(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,32 +58,51 @@ class Race(db.Model):
     def __repr__(self):
         return f"Race('{self.name}', '{self.date}')"
     
-    # Helper per ottenere gli spingitori ordinati
-    def get_spingitori_ordered(self):
-        """Ritorna gli spingitori ordinati per ordine di esecuzione"""
+    # Helper per ottenere pilota e spingitori separatamente
+    def get_pilota(self):
+        """Ritorna il pilota (ordine_esecuzione = 0)"""
+        return db.session.query(Spingitore).join(RaceSpingitore)\
+                         .filter(RaceSpingitore.race_id == self.id)\
+                         .filter(RaceSpingitore.ordine_esecuzione == 0)\
+                         .first()
+    
+    def get_spingitori_only(self):
+        """Ritorna solo gli spingitori (ordine_esecuzione > 0) ordinati"""
+        return db.session.query(Spingitore).join(RaceSpingitore)\
+                         .filter(RaceSpingitore.race_id == self.id)\
+                         .filter(RaceSpingitore.ordine_esecuzione > 0)\
+                         .order_by(RaceSpingitore.ordine_esecuzione).all()
+    
+    def get_all_members_ordered(self):
+        """Ritorna tutti i membri (pilota + spingitori) ordinati per ordine di esecuzione"""
         return db.session.query(Spingitore).join(RaceSpingitore)\
                          .filter(RaceSpingitore.race_id == self.id)\
                          .order_by(RaceSpingitore.ordine_esecuzione).all()
     
-    def get_spingitori_names(self):
-        """Ritorna i nomi degli spingitori ordinati come stringa separata da virgole"""
-        spingitori_ordinati = self.get_spingitori_ordered()
-        return ", ".join([s.nome_completo() for s in spingitori_ordinati])
+    def get_pilota_name(self):
+        """Ritorna il nome del pilota"""
+        pilota = self.get_pilota()
+        return pilota.nome_completo() if pilota else "N/A"
     
-    def get_spingitori_ids_string(self):
-        """Ritorna gli ID degli spingitori ordinati come stringa separata da virgole"""
-        spingitori_ordinati = self.get_spingitori_ordered()
-        return ",".join([str(s.id) for s in spingitori_ordinati])
+    def get_spingitori_names(self):
+        """Ritorna i nomi degli spingitori (solo spingitori, non pilota) come stringa separata da virgole"""
+        spingitori = self.get_spingitori_only()
+        return ", ".join([s.nome_completo() for s in spingitori]) if spingitori else "Nessuno"
+    
+    def get_all_names(self):
+        """Ritorna tutti i nomi (pilota + spingitori) come stringa separata da virgole - per compatibilità"""
+        tutti_membri = self.get_all_members_ordered()
+        return ", ".join([s.nome_completo() for s in tutti_membri])
     
     # Proprietà per compatibilità con il codice esistente
     @property
     def spingitori(self):
-        """Proprietà per ottenere gli spingitori (per compatibilità)"""
-        return self.get_spingitori_ordered()
+        """Proprietà per ottenere tutti i membri (per compatibilità)"""
+        return self.get_all_members_ordered()
 
 class DataPoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    race_id = db.Column(db.Integer, db.ForeignKey('race.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('race.id', ondelete='CASCADE'), nullable=False)
     distance = db.Column(db.Float, nullable=False)
     speed = db.Column(db.Float, nullable=False)
     acceleration = db.Column(db.Float)

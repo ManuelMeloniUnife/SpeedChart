@@ -33,6 +33,7 @@
         <div class="d-flex justify-content-between">
             <div>
                 <p><strong>Data:</strong> {{ race.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p><strong>Pilota:</strong> {{ race.get_pilota_name() }}</p>
                 <p><strong>Spingitori:</strong> {{ race.get_spingitori_names() }}</p>
             </div>
             <div>

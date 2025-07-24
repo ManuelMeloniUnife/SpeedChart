@@ -102,6 +102,43 @@
     .suggestion-item:last-child {
         border-bottom: none;
     }
+
+    /* Stili per i tag dei membri del team */
+    .team-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        align-items: center;
+        margin-top: 0.5rem;
+    }
+
+    .pilot-badge {
+        background-color: #28a745;
+        color: white;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.375rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+
+    .spingitore-badge {
+        background-color: #007bff;
+        color: white;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.375rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+
+    .race-name {
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
@@ -159,29 +196,55 @@
     {% for race in races %}
     <div class="col-md-4 mb-4 race-card-container" 
          data-name="{{ race.name.lower() }}" 
-         data-pilota="{{ race.get_spingitori_names().lower() }}"
-         data-piloti-ids="{{ race.get_spingitori_ids_string() }}"
+         data-pilota="{{ race.get_pilota_name().lower() }}"
+         data-piloti-ids="{{ race.get_pilota().id if race.get_pilota() else '' }}"
          data-date="{{ race.date.strftime('%Y-%m') }}">
         <div class="card race-card" data-race-id="{{ race.id }}">
             <div class="card-body">
-                <h5 class="card-title">{{ race.name }}</h5>
+                <h5 class="card-title race-name">{{ race.name }}</h5>
                 <h6 class="card-subtitle mb-2 text-muted">{{ race.date.strftime('%d/%m/%Y') }}</h6>
                 
-                <div class="d-flex justify-content-between my-3">
-                    <div>
-                        <small class="text-muted">Spingitori</small>
-                        <p class="mb-0">{{ race.get_spingitori_names() or 'N/A' }}</p>
+                <div class="my-3">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Distanza</small>
+                            <p class="mb-1 small">
+                                {% set last_point = race.data_points|sort(attribute='distance')|last %}
+                                {% if last_point %}
+                                    {{ "%.2f"|format(last_point.distance) }} m
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Data</small>
+                            <p class="mb-1 small">{{ race.date.strftime('%d/%m/%Y') }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <small class="text-muted">Distanza</small>
-                        <p class="mb-0">
-                            {% set last_point = race.data_points|sort(attribute='distance')|last %}
-                            {% if last_point %}
-                                {{ "%.2f"|format(last_point.distance) }} m
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </p>
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <small class="text-muted">Team</small>
+                            <div class="team-tags">
+                                <!-- Tag Pilota -->
+                                <span class="pilot-badge">
+                                    <i class="bi bi-person-fill-gear"></i>
+                                    {{ race.get_pilota_name() }}
+                                </span>
+                                
+                                <!-- Tag Spingitori -->
+                                {% for spingitore in race.get_spingitori_only() %}
+                                <span class="spingitore-badge">
+                                    <i class="bi bi-person-fill"></i>
+                                    {{ spingitore.nome_completo() }}
+                                </span>
+                                {% endfor %}
+                                
+                                {% if race.get_spingitori_only()|length == 0 %}
+                                <small class="text-muted">Prova individuale</small>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -318,14 +381,14 @@
             cardContainers.forEach(card => {
                 const name = card.getAttribute('data-name');
                 const pilota = card.getAttribute('data-pilota');
-                const rowPilotiIds = card.getAttribute('data-piloti-ids').split(',');
+                const pilotaId = card.getAttribute('data-piloti-ids'); // Ora contiene solo l'ID del pilota
                 const date = card.getAttribute('data-date');
                 
                 const matchSearch = name.includes(searchText) || pilota.includes(searchText);
                 
-                // Match se non ci sono filtri piloti o se TUTTI i piloti selezionati sono presenti nella corsa (logica AND)
+                // Match se non ci sono filtri piloti o se il pilota selezionato corrisponde al pilota della corsa
                 const matchPilota = selectedPilotIds.length === 0 || 
-                                   selectedPilotIds.every(id => rowPilotiIds.includes(id));
+                                   selectedPilotIds.includes(parseInt(pilotaId));
                                    
                 const matchDate = !dataValue || date === dataValue;
                 

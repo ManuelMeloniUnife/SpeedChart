@@ -37,6 +37,7 @@
                         <div class="card-body">
                             <h5>{{ race1.name }}</h5>
                             <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race1.get_pilota_name() }}</p>
                             <p><strong>Spingitori:</strong> {{ race1.get_spingitori_names() }}</p>
                         </div>
                     </div>
@@ -49,6 +50,7 @@
                         <div class="card-body">
                             <h5>{{ race2.name }}</h5>
                             <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Pilota:</strong> {{ race2.get_pilota_name() }}</p>
                             <p><strong>Spingitori:</strong> {{ race2.get_spingitori_names() }}</p>
 
                         </div>

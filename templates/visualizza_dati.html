@@ -89,6 +89,42 @@
     .suggestion-item:last-child {
         border-bottom: none;
     }
+
+    /* Stili per i tag dei membri del team nelle tabelle */
+    .team-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        align-items: center;
+    }
+    
+    .pilot-badge {
+        background-color: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .spingitore-badge {
+        background-color: #007bff;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .race-name {
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
@@ -117,17 +153,17 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Filtra per Spingitori</label>
+                <label class="form-label">Filtra per Team</label>
                 <div class="pilots-filter-container">
                     <div class="pilots-input-container" id="pilotsContainer">
-                        <input type="text" class="pilots-input" id="pilotsInput" placeholder="Digita il nome di un pilota...">
+                        <input type="text" class="pilots-input" id="pilotsInput" placeholder="Digita il nome di un membro del team...">
                     </div>
                     <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Filtra per mese</label>
-                <input type="month" class="form-control" id="dataFilter">
+                <label class="form-label">Filtra per data</label>
+                <input type="date" class="form-control" id="dataFilter">
             </div>
             <div class="col-md-2">
                 <label class="form-label">&nbsp;</label>
@@ -147,9 +183,8 @@
                     <tr>
                         <th>Nome Prova</th>
                         <th>Data</th>
-                        <th>Spingitori</th>
+                        <th>Team</th>
                         <th>Distanza</th>
-                        <th>Note</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -157,26 +192,40 @@
                     {% for race in races %}
                     <tr 
                         data-name="{{ race.name.lower() }}" 
-                        data-pilota="{{ race.get_spingitori_names().lower() }}"
-                        data-piloti-ids="{{ race.get_spingitori_ids_string() }}"
-                        data-date="{{ race.date.strftime('%Y-%m') }}"
+                        data-pilota="{{ race.get_pilota_name().lower() }}"
+                        data-team-ids="{% if race.get_pilota() %}{{ race.get_pilota().id }}{% endif %}{% for spingitore in race.get_spingitori_only() %},{{ spingitore.id }}{% endfor %}"
+                        data-team-names="{{ race.get_pilota_name().lower() }}{% for spingitore in race.get_spingitori_only() %},{{ spingitore.nome_completo().lower() }}{% endfor %}"
+                        data-date="{{ race.date.strftime('%Y-%m-%d') }}"
                     >
-                        <td>{{ race.name }}</td>
+                        <td class="race-name">{{ race.name }}</td>
                         <td>{{ race.date.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ race.get_spingitori_names() or 'N/A' }}</td>
+                        <td>
+                            <div class="team-tags">
+                                <!-- Tag Pilota -->
+                                <span class="pilot-badge">
+                                    <i class="bi bi-person-fill-gear"></i>
+                                    {{ race.get_pilota_name() }}
+                                </span>
+                                
+                                <!-- Tag Spingitori -->
+                                {% for spingitore in race.get_spingitori_only() %}
+                                <span class="spingitore-badge">
+                                    <i class="bi bi-person-fill"></i>
+                                    {{ spingitore.nome_completo() }}
+                                </span>
+                                {% endfor %}
+                                
+                                {% if race.get_spingitori_only()|length == 0 %}
+                                <small class="text-muted">Prova individuale</small>
+                                {% endif %}
+                            </div>
+                        </td>
                         <td>
                             {% set last_point = race.data_points|sort(attribute='distance')|last %}
                             {% if last_point %}
                                 {{ "%.2f"|format(last_point.distance) }} m
                             {% else %}
                                 N/A
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if race.notes %}
-                                <span class="text-truncate d-inline-block" style="max-width: 200px;">{{ race.notes }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
@@ -194,7 +243,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center">
+                        <td colspan="5" class="text-center">
                             Nessuna corsa registrata. <a href="{{ url_for('main.upload') }}">Carica la tua prima prova</a>.
                         </td>
                     </tr>
@@ -323,27 +372,27 @@
         });
         
         // Funzione per filtrare la tabella
-        // Funzione per filtrare la tabella
         function filterTable() {
             const searchText = searchInput.value.toLowerCase();
             const selectedPilotIds = selectedPilots.map(p => p.id);
-            const dataValue = dataFilter.value;
+            const dataValue = dataFilter.value; // Formato YYYY-MM-DD
             
             tableRows.forEach(row => {
                 const name = row.getAttribute('data-name');
-                const pilota = row.getAttribute('data-pilota');
-                const rowPilotiIds = row.getAttribute('data-piloti-ids').split(',');
-                const date = row.getAttribute('data-date');
+                const teamNames = row.getAttribute('data-team-names');
+                const teamIds = row.getAttribute('data-team-ids').split(',').filter(id => id.trim() !== '');
+                const date = row.getAttribute('data-date'); // Formato YYYY-MM-DD
                 
-                const matchSearch = name.includes(searchText) || pilota.includes(searchText);
+                // Match per ricerca nome prova o nomi team members
+                const matchSearch = name.includes(searchText) || teamNames.includes(searchText);
                 
-                // Match se non ci sono filtri piloti o se TUTTI i piloti selezionati sono presenti nella corsa (logica AND)
-                const matchPilota = selectedPilotIds.length === 0 || 
-                                   selectedPilotIds.every(id => rowPilotiIds.includes(id));
+                // Match se non ci sono filtri team o se TUTTI i team members selezionati sono presenti nella corsa (logica AND)
+                const matchTeam = selectedPilotIds.length === 0 || 
+                                  selectedPilotIds.every(id => teamIds.includes(id));
                                    
                 const matchDate = !dataValue || date === dataValue;
                 
-                if (matchSearch && matchPilota && matchDate) {
+                if (matchSearch && matchTeam && matchDate) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';

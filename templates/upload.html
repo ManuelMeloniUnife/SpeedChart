@@ -2,6 +2,98 @@
 
 {% block title %}SpeedChart - Carica Dati{% endblock %}
 
+{% block styles %}
+<style>
+/* Stili per il sistema di ordinamento spingitori */
+.pilot-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.pilot-item:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pilot-item.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.pilot-item.relay-item {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    position: relative;
+}
+
+.pilot-item.relay-item::before {
+    content: counter(relay-counter);
+    counter-increment: relay-counter;
+    position: absolute;
+    left: -10px;
+    top: -10px;
+    background: #2196f3;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#relay-order {
+    counter-reset: relay-counter;
+}
+
+.pilot-avatar {
+    width: 32px;
+    height: 32px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.pilot-name {
+    font-weight: 500;
+}
+
+.sortable-container {
+    min-height: 50px;
+}
+
+.empty-relay-message {
+    color: #6c757d !important;
+}
+
+.drag-over {
+    background-color: #fff3cd !important;
+    border-color: #ffc107 !important;
+}
+
+.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-md-12">
@@ -32,15 +124,51 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="spingitori_ids" class="form-label">Spingitori</label>
-                        <select class="form-select" id="spingitori_ids" name="spingitori_ids" multiple required>
-                            {% for spingitore in spingitori_attivi %}
-                                <option value="{{ spingitore.id }}">{{ spingitore.nome_completo() }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">Tieni premuto CTRL per selezionare più Spingitori</div>
+                        <label class="form-label">Spingitori (Ordine di Esecuzione Staffetta)</label>
+                        <div class="row">
+                            <!-- Lista spingitori disponibili -->
+                            <div class="col-md-6">
+                                <h6>Spingitori Disponibili</h6>
+                                <div class="border rounded p-2" style="min-height: 200px; background-color: #f8f9fa;">
+                                    <div id="available-pilots" class="sortable-container">
+                                        {% for spingitore in spingitori_attivi %}
+                                        <div class="pilot-item available" data-id="{{ spingitore.id }}" data-name="{{ spingitore.nome_completo() }}">
+                                            <div class="d-flex align-items-center">
+                                                <div class="pilot-avatar me-2">{{ spingitore.nome[0] }}{{ spingitore.cognome[0] if spingitore.cognome else "" }}</div>
+                                                <div class="pilot-info">
+                                                    <div class="pilot-name">{{ spingitore.nome_completo() }}</div>
+                                                    <small class="text-muted">{{ spingitore.ruolo or "Pilota" }}</small>
+                                                </div>
+                                                <i class="bi bi-plus-circle ms-auto text-primary"></i>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">Clicca per aggiungere alla staffetta</small>
+                            </div>
+                            
+                            <!-- Lista ordine staffetta -->
+                            <div class="col-md-6">
+                                <h6>Ordine Staffetta</h6>
+                                <div class="border rounded p-2" style="min-height: 200px; background-color: #e3f2fd;">
+                                    <div id="relay-order" class="sortable-container">
+                                        <div class="empty-relay-message text-center text-muted p-4">
+                                            <i class="bi bi-arrow-left-circle fs-3 mb-2"></i>
+                                            <div>Aggiungi spingitori dalla lista a sinistra</div>
+                                            <small>Trascina per riordinare</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">Trascina per cambiare l'ordine</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Campo nascosto per l'ordine -->
+                        <input type="hidden" id="spingitori_order" name="spingitori_order" required>
+                        
                         {% if not spingitori_attivi %}
-                            <div class="form-text text-warning">
+                            <div class="form-text text-warning mt-2">
                                 Non sono presenti spingitori attivi. <a href="{{ url_for('main.gestione_team') }}">Aggiungi uno spingitore</a> prima di caricare dati.
                             </div>
                         {% endif %}
@@ -63,6 +191,9 @@
                     I file devono essere nel formato fornito dal computer di bordo della macchinina.
                 </p>
                 <p class="card-text">
+                    <strong>Staffetta:</strong> Aggiungi gli spingitori nell'ordine di esecuzione. Trascina per riordinare.
+                </p>
+                <p class="card-text">
                     Ogni riga del file rappresenta la velocità raggiunta dalla macchinina ogni 1.52 metri percorsi (un giro ruota).
                 </p>
                 <p class="card-text">
@@ -72,4 +203,197 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const availablePilots = document.getElementById('available-pilots');
+    const relayOrder = document.getElementById('relay-order');
+    const spingitoriOrderInput = document.getElementById('spingitori_order');
+    const form = document.querySelector('form');
+    
+    // Gestione click sui piloti disponibili
+    availablePilots.addEventListener('click', function(e) {
+        const pilotItem = e.target.closest('.pilot-item');
+        if (!pilotItem) return;
+        
+        addToRelay(pilotItem);
+    });
+    
+    // Gestione click sui piloti nella staffetta (per rimuovere)
+    relayOrder.addEventListener('click', function(e) {
+        const pilotItem = e.target.closest('.pilot-item');
+        if (!pilotItem || e.target.closest('.remove-btn')) {
+            if (e.target.closest('.remove-btn')) {
+                removeFromRelay(pilotItem);
+            }
+            return;
+        }
+    });
+    
+    // Funzione per aggiungere un pilota alla staffetta
+    function addToRelay(pilotItem) {
+        const pilotId = pilotItem.dataset.id;
+        const pilotName = pilotItem.dataset.name;
+        
+        // Nascondi il messaggio vuoto
+        const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+        if (emptyMessage) {
+            emptyMessage.style.display = 'none';
+        }
+        
+        // Crea nuovo elemento per la staffetta
+        const relayItem = document.createElement('div');
+        relayItem.className = 'pilot-item relay-item';
+        relayItem.dataset.id = pilotId;
+        relayItem.dataset.name = pilotName;
+        relayItem.draggable = true;
+        
+        relayItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="pilot-avatar me-2">${pilotName.split(' ').map(n => n[0]).join('')}</div>
+                <div class="pilot-info flex-grow-1">
+                    <div class="pilot-name">${pilotName}</div>
+                    <small class="text-muted">Ordine: <span class="order-number"></span></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-btn" title="Rimuovi">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `;
+        
+        relayOrder.appendChild(relayItem);
+        
+        // Nascondi il pilota dalla lista disponibili
+        pilotItem.style.display = 'none';
+        
+        updateOrderNumbers();
+        updateFormInput();
+        setupDragAndDrop();
+    }
+    
+    // Funzione per rimuovere un pilota dalla staffetta
+    function removeFromRelay(pilotItem) {
+        const pilotId = pilotItem.dataset.id;
+        
+        // Rimuovi dalla staffetta
+        pilotItem.remove();
+        
+        // Mostra di nuovo nella lista disponibili
+        const availableItem = availablePilots.querySelector(`[data-id="${pilotId}"]`);
+        if (availableItem) {
+            availableItem.style.display = 'block';
+        }
+        
+        // Mostra messaggio vuoto se necessario
+        if (relayOrder.children.length === 1) { // solo empty message
+            const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+            }
+        }
+        
+        updateOrderNumbers();
+        updateFormInput();
+    }
+    
+    // Aggiorna i numeri d'ordine
+    function updateOrderNumbers() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        relayItems.forEach((item, index) => {
+            const orderSpan = item.querySelector('.order-number');
+            if (orderSpan) {
+                orderSpan.textContent = index + 1;
+            }
+        });
+    }
+    
+    // Aggiorna il campo nascosto del form
+    function updateFormInput() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        const orderArray = Array.from(relayItems).map(item => item.dataset.id);
+        spingitoriOrderInput.value = orderArray.join(',');
+    }
+    
+    // Setup drag and drop
+    function setupDragAndDrop() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        
+        relayItems.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+        });
+    }
+    
+    let draggedElement = null;
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        // Rimuovi tutti gli indicatori di drag over
+        relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+        return false;
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            // Scambia gli elementi
+            const draggedParent = draggedElement.parentNode;
+            const targetParent = this.parentNode;
+            const draggedSibling = draggedElement.nextSibling;
+            const targetSibling = this.nextSibling;
+            
+            if (draggedSibling === this) {
+                targetParent.insertBefore(draggedElement, targetSibling);
+            } else {
+                targetParent.insertBefore(draggedElement, this);
+                draggedParent.insertBefore(this, draggedSibling);
+            }
+            
+            updateOrderNumbers();
+            updateFormInput();
+        }
+        
+        this.classList.remove('drag-over');
+        return false;
+    }
+    
+    // Validazione form
+    form.addEventListener('submit', function(e) {
+        const orderValue = spingitoriOrderInput.value;
+        if (!orderValue || orderValue.trim() === '') {
+            e.preventDefault();
+            alert('Seleziona almeno uno spingitore per la staffetta!');
+            return false;
+        }
+    });
+    
+    // Inizializzazione
+    updateFormInput();
+});
+</script>
 {% endblock %}

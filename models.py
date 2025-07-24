@@ -5,11 +5,21 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-# Tabella di associazione per la relazione many-to-many tra Race e Spingitore
-race_spingitore = db.Table('race_spingitore',
-    db.Column('race_id', db.Integer, db.ForeignKey('race.id'), primary_key=True),
-    db.Column('spingitore_id', db.Integer, db.ForeignKey('spingitore.id'), primary_key=True)
-)
+# Modello per la relazione many-to-many con ordine di esecuzione
+class RaceSpingitore(db.Model):
+    __tablename__ = 'race_spingitore'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    race_id = db.Column(db.Integer, db.ForeignKey('race.id'), nullable=False)
+    spingitore_id = db.Column(db.Integer, db.ForeignKey('spingitore.id'), nullable=False)
+    ordine_esecuzione = db.Column(db.Integer, nullable=False, default=1)  # Ordine nella staffetta
+    
+    # Relazioni
+    race = db.relationship('Race', backref='race_spingitori_ordered')
+    spingitore = db.relationship('Spingitore', backref='spingitore_races_ordered')
+    
+    def __repr__(self):
+        return f"RaceSpingitore(race_id={self.race_id}, spingitore_id={self.spingitore_id}, ordine={self.ordine_esecuzione})"
 
 class Spingitore(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -18,11 +28,6 @@ class Spingitore(db.Model):
     ruolo = db.Column(db.String(100))
     attivo = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relazione con Race (many-to-many)
-    corse = db.relationship('Race', secondary=race_spingitore, 
-                           backref=db.backref('spingitori', lazy='dynamic'), 
-                           lazy='dynamic')
     
     def __repr__(self):
         return f"Spingitore('{self.nome} {self.cognome}')"
@@ -36,8 +41,6 @@ class Race(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
-    # Rimuoviamo la relazione one-to-many con Spingitore
-    # spingitore_id = db.Column(db.Integer, db.ForeignKey('spingitore.id'))
     wheel_circumference = db.Column(db.Float, default=1.52)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -48,14 +51,28 @@ class Race(db.Model):
     def __repr__(self):
         return f"Race('{self.name}', '{self.date}')"
     
-    # Helper per ottenere gli spingitori come stringa
+    # Helper per ottenere gli spingitori ordinati
+    def get_spingitori_ordered(self):
+        """Ritorna gli spingitori ordinati per ordine di esecuzione"""
+        return db.session.query(Spingitore).join(RaceSpingitore)\
+                         .filter(RaceSpingitore.race_id == self.id)\
+                         .order_by(RaceSpingitore.ordine_esecuzione).all()
+    
     def get_spingitori_names(self):
-        """Ritorna i nomi degli spingitori come stringa separata da virgole"""
-        return ", ".join([s.nome_completo() for s in self.spingitori])
+        """Ritorna i nomi degli spingitori ordinati come stringa separata da virgole"""
+        spingitori_ordinati = self.get_spingitori_ordered()
+        return ", ".join([s.nome_completo() for s in spingitori_ordinati])
     
     def get_spingitori_ids_string(self):
-        """Ritorna gli ID degli spingitori come stringa separata da virgole"""
-        return ",".join([str(s.id) for s in self.spingitori])
+        """Ritorna gli ID degli spingitori ordinati come stringa separata da virgole"""
+        spingitori_ordinati = self.get_spingitori_ordered()
+        return ",".join([str(s.id) for s in spingitori_ordinati])
+    
+    # Proprietà per compatibilità con il codice esistente
+    @property
+    def spingitori(self):
+        """Proprietà per ottenere gli spingitori (per compatibilità)"""
+        return self.get_spingitori_ordered()
 
 class DataPoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,7 +1,7 @@
 # routes.py
 # routes.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Race, DataPoint, Spingitore, race_spingitore  # Aggiungi race_spingitore qui
+from models import db, Race, DataPoint, Spingitore, RaceSpingitore
 from utils.file_parser import parse_race_file
 from datetime import datetime, date
 from sqlalchemy import desc
@@ -38,12 +38,19 @@ def upload():
             
             # Ottieni i dati dal form
             race_name = request.form.get('race_name', '')
-            spingitori_ids = request.form.getlist('spingitori_ids')  # Ottiene lista di ID selezionati
+            spingitori_order = request.form.get('spingitori_order', '')  # Nuovo campo per l'ordine
             race_date = request.form.get('date', '')
             notes = request.form.get('notes', '')
             
-            if not race_name or not spingitori_ids:
-                flash('Nome della prova e almeno un pilota sono obbligatori', 'danger')
+            # Parsa l'ordine degli spingitori
+            if not race_name or not spingitori_order:
+                flash('Nome della prova e almeno uno spingitore sono obbligatori', 'danger')
+                return redirect(request.url)
+            
+            try:
+                spingitori_ids = [int(id_str) for id_str in spingitori_order.split(',') if id_str.strip()]
+            except ValueError:
+                flash('Errore nel formato dell\'ordine spingitori', 'danger')
                 return redirect(request.url)
             
             # Parsa il file
@@ -64,14 +71,19 @@ def upload():
                     wheel_circumference=parsed_data['header_info'].get('wheel_circumference', 1.52)
                 )
                 
-                # Aggiungi gli spingitori selezionati
-                for spingitore_id in spingitori_ids:
-                    spingitore = Spingitore.query.get(spingitore_id)
-                    if spingitore:
-                        race.spingitori.append(spingitore)
-                
                 db.session.add(race)
                 db.session.flush()  # Per ottenere l'ID della corsa
+                
+                # Aggiungi gli spingitori con l'ordine specificato
+                for ordine, spingitore_id in enumerate(spingitori_ids, 1):
+                    spingitore = Spingitore.query.get(spingitore_id)
+                    if spingitore:
+                        race_spingitore = RaceSpingitore(
+                            race_id=race.id,
+                            spingitore_id=spingitore_id,
+                            ordine_esecuzione=ordine
+                        )
+                        db.session.add(race_spingitore)
                 
                 # Aggiungi i punti dati
                 for point in parsed_data['data_points']:
@@ -365,14 +377,13 @@ def elimina_spingitore():
         flash('Spingitore non trovato', 'danger')
         return redirect(url_for('main.gestione_team'))
     
-    # Trova le corse associate usando la relazione many-to-many
-    corse_associate = spingitore.corse.all()
+    # Trova le corse associate usando la nuova tabella di relazione
+    corse_associate = db.session.query(RaceSpingitore).filter_by(spingitore_id=spingitore_id).all()
     num_corse = len(corse_associate)
     
-    # Rimuovi lo spingitore da tutte le corse associate
-    # Non eliminiamo le corse, ma rimuoviamo solo l'associazione
-    for corsa in corse_associate:
-        corsa.spingitori.remove(spingitore)
+    # Rimuovi tutte le associazioni con le corse
+    for associazione in corse_associate:
+        db.session.delete(associazione)
     
     # Elimina lo spingitore
     db.session.delete(spingitore)

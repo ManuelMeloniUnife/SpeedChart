@@ -1,5 +1,5 @@
 =============================================
-             SPEEDCHART
+           SPEEDCHART v1.1-dev
 =============================================
 
 ISTRUZIONI PER L'INSTALLAZIONE:

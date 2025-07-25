@@ -1,7 +1,7 @@
 # routes.py
 # routes.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Race, DataPoint, Spingitore, RaceSpingitore
+from models import db, Race, DataPoint, Spingitore, RaceSpingitore, Cartella
 from utils.file_parser import parse_race_file
 from datetime import datetime, date
 from sqlalchemy import desc, text
@@ -80,11 +80,15 @@ def upload():
                 except:
                     race_date = datetime.now()
                 
+                # Ottieni la cartella predefinita
+                cartella_generale = Cartella.get_default_folder()
+                
                 # Crea una nuova corsa
                 race = Race(
                     name=race_name,
                     date=race_date,
                     notes=notes,
+                    cartella_id=cartella_generale.id,
                     wheel_circumference=parsed_data['header_info'].get('wheel_circumference', 1.52)
                 )
                 
@@ -140,8 +144,35 @@ def visualizza_dati():
     # Ottieni tutti gli spingitori - usati per filtro
     spingitori = Spingitore.query.order_by(Spingitore.nome).all()
     
-    # Ottieni tutte le corse (rimuoviamo il filtro per spingitori attivi)
+    # Ottieni tutte le cartelle
+    cartelle = Cartella.query.order_by(Cartella.nome).all()
+    
+    # Ottieni tutte le corse raggruppate per cartella
     races = Race.query.order_by(Race.date.desc()).all()
+    
+    # Inizializza corse_per_cartella con tutte le cartelle esistenti
+    corse_per_cartella = {}
+    
+    # Prima aggiungi tutte le cartelle esistenti, anche se vuote
+    for cartella in cartelle:
+        corse_per_cartella[cartella.nome] = {
+            'cartella': cartella,
+            'corse': []
+        }
+    
+    # Aggiungi anche la categoria "Senza Cartella" se ci sono corse senza cartella
+    corse_senza_cartella = [race for race in races if race.cartella is None]
+    if corse_senza_cartella:
+        corse_per_cartella['Senza Cartella'] = {
+            'cartella': None,
+            'corse': []
+        }
+    
+    # Ora raggruppa le corse per cartella
+    for race in races:
+        cartella_nome = race.cartella.nome if race.cartella else 'Senza Cartella'
+        if cartella_nome in corse_per_cartella:
+            corse_per_cartella[cartella_nome]['corse'].append(race)
     
     # Converti gli spingitori in dizionari per la serializzazione JSON
     spingitori_data = []
@@ -154,7 +185,9 @@ def visualizza_dati():
         })
             
     return render_template('visualizza_dati.html', 
-                          races=races, 
+                          races=races,
+                          cartelle=cartelle,
+                          corse_per_cartella=corse_per_cartella,
                           spingitori=spingitori, 
                           spingitori_data=spingitori_data)
 
@@ -517,3 +550,138 @@ def get_race_data(race_id):
     }
     
     return jsonify(data)
+
+# Routes per gestione cartelle
+
+@main.route('/crea-cartella', methods=['POST'])
+def crea_cartella():
+    """Crea una nuova cartella"""
+    nome_cartella = request.form.get('nome', '').strip()
+    colore_cartella = request.form.get('colore', '#007bff').strip()
+    
+    if not nome_cartella:
+        flash('Il nome della cartella è obbligatorio', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Verifica che non esista già una cartella con lo stesso nome
+    cartella_esistente = Cartella.query.filter_by(nome=nome_cartella).first()
+    if cartella_esistente:
+        flash(f'Esiste già una cartella con il nome "{nome_cartella}"', 'warning')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Crea la nuova cartella
+    nuova_cartella = Cartella(nome=nome_cartella, colore=colore_cartella)
+    db.session.add(nuova_cartella)
+    db.session.commit()
+    
+    flash(f'Cartella "{nome_cartella}" creata con successo!', 'success')
+    return redirect(url_for('main.visualizza_dati'))
+
+@main.route('/elimina-cartella', methods=['POST'])
+def elimina_cartella():
+    """Elimina una cartella e sposta le corse nella cartella Generale"""
+    cartella_id = request.form.get('id')
+    
+    if not cartella_id:
+        flash('ID cartella obbligatorio', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    cartella = Cartella.query.get(cartella_id)
+    if not cartella:
+        flash('Cartella non trovata', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Non permettere di eliminare la cartella "Generale"
+    if cartella.nome == 'Generale':
+        flash('Non è possibile eliminare la cartella "Generale"', 'warning')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Sposta tutte le corse di questa cartella nella cartella "Generale"
+    cartella_generale = Cartella.get_default_folder()
+    corse_da_spostare = Race.query.filter_by(cartella_id=cartella.id).all()
+    
+    for corsa in corse_da_spostare:
+        corsa.cartella_id = cartella_generale.id
+    
+    # Elimina la cartella
+    nome_cartella = cartella.nome
+    num_corse = len(corse_da_spostare)
+    
+    db.session.delete(cartella)
+    db.session.commit()
+    
+    if num_corse > 0:
+        flash(f'Cartella "{nome_cartella}" eliminata. {num_corse} corse spostate in "Generale".', 'success')
+    else:
+        flash(f'Cartella "{nome_cartella}" eliminata.', 'success')
+    
+    return redirect(url_for('main.visualizza_dati'))
+
+@main.route('/sposta-corsa', methods=['POST'])
+def sposta_corsa():
+    """Sposta una corsa in una cartella diversa"""
+    corsa_id = request.form.get('corsa_id')
+    cartella_id = request.form.get('cartella_id')
+    
+    if not corsa_id:
+        return jsonify({'success': False, 'message': 'ID corsa mancante'})
+    
+    corsa = Race.query.get(corsa_id)
+    if not corsa:
+        return jsonify({'success': False, 'message': 'Corsa non trovata'})
+    
+    # Gestisci il caso speciale per "Senza Cartella"
+    if cartella_id == 'no-folder' or cartella_id == 'null' or not cartella_id:
+        corsa.cartella_id = None
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Corsa "{corsa.name}" spostata in "Senza Cartella"'
+        })
+    
+    cartella = Cartella.query.get(cartella_id)
+    if not cartella:
+        return jsonify({'success': False, 'message': 'Cartella non trovata'})
+    
+    corsa.cartella_id = cartella.id
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Corsa "{corsa.name}" spostata in "{cartella.nome}"'
+    })
+
+@main.route('/rinomina-cartella', methods=['POST'])
+def rinomina_cartella():
+    """Rinomina una cartella"""
+    cartella_id = request.form.get('id')
+    nuovo_nome = request.form.get('nome', '').strip()
+    nuovo_colore = request.form.get('colore', '#007bff').strip()
+    
+    if not cartella_id or not nuovo_nome:
+        flash('ID cartella e nome sono obbligatori', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    cartella = Cartella.query.get(cartella_id)
+    if not cartella:
+        flash('Cartella non trovata', 'danger')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Verifica che non esista già una cartella con il nuovo nome (esclusa quella corrente)
+    cartella_esistente = Cartella.query.filter(
+        Cartella.nome == nuovo_nome, 
+        Cartella.id != cartella_id
+    ).first()
+    
+    if cartella_esistente:
+        flash(f'Esiste già una cartella con il nome "{nuovo_nome}"', 'warning')
+        return redirect(url_for('main.visualizza_dati'))
+    
+    # Aggiorna la cartella
+    vecchio_nome = cartella.nome
+    cartella.nome = nuovo_nome
+    cartella.colore = nuovo_colore
+    db.session.commit()
+    
+    flash(f'Cartella "{vecchio_nome}" rinominata in "{nuovo_nome}"', 'success')
+    return redirect(url_for('main.visualizza_dati'))

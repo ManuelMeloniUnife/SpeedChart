@@ -128,14 +128,13 @@
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="file" class="form-label">File dati (.txt) <span class="required-asterisk">*</span></label>
                         <input type="file" class="form-control" id="file" name="file" required accept=".txt">
-                        <div class="form-text">Il file deve essere in formato .txt dal computer di bordo.</div>
                     </div>
                     
                     <div class="mb-3">
@@ -171,7 +170,6 @@
 
                     <!-- Selezione Spingitori per Staffette (opzionale) -->
                     <div class="mb-3">
-                        <label class="form-label">Ordine dei Cambi</label>
                         <div class="row">
                             <!-- Lista spingitori disponibili -->
                             <div class="col-md-6">
@@ -197,7 +195,6 @@
                                         {% endfor %}
                                     </div>
                                 </div>
-                                <small class="form-text text-muted">Clicca per aggiungere all'ordine dei cambi</small>
                             </div>
                             
                             <!-- Lista ordine staffetta -->
@@ -208,49 +205,18 @@
                                         <div class="empty-relay-message text-center text-muted p-4">
                                             <i class="bi bi-arrow-left-circle fs-3 mb-2"></i>
                                             <div>Aggiungi spingitori dalla lista a sinistra</div>
-                                            <small>Trascina per riordinare</small>
                                         </div>
                                     </div>
                                 </div>
-                                <small class="form-text text-muted">Trascina per cambiare l'ordine</small>
                             </div>
                         </div>
                         
                         <!-- Campo nascosto per l'ordine -->
                         <input type="hidden" id="spingitori_order" name="spingitori_order">
-                        
-                        {% if not spingitori %}
-                            <div class="form-text text-muted mt-2">
-                                Non sono presenti spingitori. <a href="{{ url_for('main.gestione_team') }}">Aggiungi spingitori</a> per le prove a staffetta.
-                            </div>
-                        {% endif %}
                     </div>
                     
                     <button type="submit" class="btn btn-primary" {% if not piloti %}disabled{% endif %}>Carica e analizza</button>
                 </form>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                Istruzioni
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">Come caricare i dati</h5>
-                <p class="card-text">
-                    I file devono essere nel formato fornito dal computer di bordo della macchinina.
-                </p>
-                <p class="card-text">
-                    <strong>Staffetta:</strong> Aggiungi gli spingitori nell'ordine di esecuzione. Trascina per riordinare.
-                </p>
-                <p class="card-text">
-                    Ogni riga del file rappresenta la velocità raggiunta dalla macchinina ogni 1.52 metri percorsi (un giro ruota).
-                </p>
-                <p class="card-text">
-                    Il sistema ignorerà automaticamente le righe di intestazione e i valori zero ripetuti all'inizio del file.
-                </p>
             </div>
         </div>
     </div>
@@ -490,6 +456,48 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listener per il bottone auto-riempimento
     document.getElementById('auto-fill-btn').addEventListener('click', generateRaceName);
+    
+    // **FUNZIONE NUOVA: Lettura automatica della data dal file**
+    const fileInput = document.getElementById('file');
+    const dateInput = document.getElementById('date');
+    
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            const lines = content.split('\n');
+            
+            // La data dovrebbe essere nella seconda riga (indice 1)
+            if (lines.length >= 2) {
+                const dateLineWithTime = lines[1].trim();
+                
+                // Estraiamo solo la parte della data (formato DD/MM/YYYY)
+                const dateMatch = dateLineWithTime.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                
+                if (dateMatch) {
+                    const [, day, month, year] = dateMatch;
+                    // Formattiamo per il campo date HTML (YYYY-MM-DD)
+                    const formattedDate = `${year}-${month}-${day}`;
+                    dateInput.value = formattedDate;
+                    
+                    console.log(`Data estratta dal file: ${day}/${month}/${year} -> ${formattedDate}`);
+                } else {
+                    console.warn('Formato data non riconosciuto nella riga:', dateLineWithTime);
+                }
+            } else {
+                console.warn('File troppo corto, impossibile estrarre la data');
+            }
+        };
+        
+        reader.onerror = function() {
+            console.error('Errore nella lettura del file');
+        };
+        
+        reader.readAsText(file);
+    });
     
     // Genera nome anche quando aggiungiamo/rimuoviamo spingitori (ora rimosso)
     function updateFormInputWithNameGeneration() {

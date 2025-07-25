@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
-from models import db, Race, DataPoint, Spingitore, RaceSpingitore
+from models import db, Race, DataPoint, Spingitore, RaceSpingitore, Cartella
 from utils.file_parser import parse_race_file
 import os
 from dash_app import init_dashboard

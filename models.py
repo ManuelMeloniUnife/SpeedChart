@@ -5,6 +5,53 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+class Cartella(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    colore = db.Column(db.String(7), default='#007bff')  # Colore esadecimale per personalizzazione
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Campo per cartelle annidate
+    parent_id = db.Column(db.Integer, db.ForeignKey('cartella.id'), nullable=True)
+    
+    # Relazioni
+    parent = db.relationship('Cartella', remote_side=[id], backref='subcartelle')
+    races = db.relationship('Race', backref='cartella', lazy=True, cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"Cartella('{self.nome}')"
+    
+    @property
+    def full_path(self):
+        """Restituisce il percorso completo della cartella"""
+        if self.parent:
+            return f"{self.parent.full_path} > {self.nome}"
+        return self.nome
+    
+    @property
+    def level(self):
+        """Restituisce il livello di annidamento (0 = radice)"""
+        if self.parent:
+            return self.parent.level + 1
+        return 0
+    
+    def get_all_races_recursive(self):
+        """Ottiene tutte le corse di questa cartella e delle sue sottocartelle"""
+        races = list(self.races)
+        for subcartella in self.subcartelle:
+            races.extend(subcartella.get_all_races_recursive())
+        return races
+    
+    @staticmethod
+    def get_default_folder():
+        """Ottiene o crea la cartella predefinita 'Generale'"""
+        cartella_generale = Cartella.query.filter_by(nome='Generale', parent_id=None).first()
+        if not cartella_generale:
+            cartella_generale = Cartella(nome='Generale', colore='#6c757d', parent_id=None)
+            db.session.add(cartella_generale)
+            db.session.commit()
+        return cartella_generale
+
 # Modello per la relazione many-to-many con ordine di esecuzione
 class RaceSpingitore(db.Model):
     __tablename__ = 'race_spingitore'
@@ -51,6 +98,9 @@ class Race(db.Model):
     wheel_circumference = db.Column(db.Float, default=1.52)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relazione con cartella
+    cartella_id = db.Column(db.Integer, db.ForeignKey('cartella.id'), nullable=True)
     
     # Relazione con DataPoint
     data_points = db.relationship('DataPoint', backref='race', lazy=True, cascade="all, delete-orphan")

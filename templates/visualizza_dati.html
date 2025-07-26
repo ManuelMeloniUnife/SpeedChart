@@ -130,6 +130,68 @@
     .race-name {
         font-weight: bold;
     }
+    
+    /* Stili per modalità confronto */
+    .modalita-confronto .race-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .modalita-confronto .race-row:hover {
+        background-color: #e3f2fd !important;
+        border-left: 4px solid #42a5f5;
+    }
+    
+    .modalita-confronto .race-row.selected-for-comparison {
+        background-color: #bbdefb !important;
+        border-left: 4px solid #1976d2;
+        box-shadow: 0 1px 3px rgba(25, 118, 210, 0.3);
+    }
+    
+    .modalita-confronto .race-row.selected-for-comparison:hover {
+        background-color: #90caf9 !important;
+        border-left: 4px solid #1565c0;
+    }
+    
+    /* Stili per i file selezionati nella barra */
+    .selected-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .selected-file-tag {
+        background-color: #1976d2;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .selected-file-tag .remove-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .selected-file-tag .remove-btn:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
 </style>
 {% endblock %}
 
@@ -137,15 +199,40 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <h2>Visualizza Dati</h2>
-        <p>Esplora e analizza le corse registrate.</p>
     </div>
     <div class="col-md-4 text-end">
         <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#nuovaCartellaModal">
             <i class="bi bi-folder-plus"></i> Nuova Cartella
         </button>
-        <a href="{{ url_for('main.compare') }}" class="btn btn-primary">
+        <button class="btn btn-primary" id="confrontaCorse" onclick="attivaModalitaConfronto()">
             <i class="bi bi-bar-chart-line"></i> Confronta Corse
-        </a>
+        </button>
+    </div>
+</div>
+
+<!-- Barra modalità confronto (inizialmente nascosta) -->
+<div class="card mb-4" id="barraConfronto" style="display: none;">
+    <div class="card-body bg-light">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-0">
+                    <i class="bi bi-check-square text-primary"></i>
+                    Modalità Confronto: Seleziona 2 prove da confrontare
+                </h5>
+                <small class="text-muted">
+                    <span id="conteggioSelezione">0 di 2 prove selezionate</span>
+                </small>
+                <div id="selectedFilesContainer" class="selected-files"></div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-success me-2" id="confermaConfronto" disabled onclick="confermaConfronto()">
+                    <i class="bi bi-graph-up"></i> Confronta
+                </button>
+                <button class="btn btn-secondary" onclick="annullaModalitaConfronto()">
+                    <i class="bi bi-x"></i> Annulla
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -256,7 +343,7 @@
                         ondragstart="handleDragStart(event)"
                         ondragend="handleDragEnd(event)"
                         oncontextmenu="showContextMenu(event, {{ race.id }}, '{{ race.name|e }}'); return false;"
-                        onclick="apriProva({{ race.id }})"
+                        onclick="gestisciClickProva({{ race.id }})"
                         style="cursor: pointer;">
                         
                         <td class="race-name">{{ race.name }}</td>
@@ -525,8 +612,136 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedRaceId = null;
     let draggedRaceId = null;
     
+    // Variabili per modalità confronto
+    let modalitaConfronto = false;
+    let proveSelezionate = [];
+    
     // ========================================
-    // 3. FUNZIONI DRAG & DROP GLOBALI
+    // 3. MODALITÀ CONFRONTO
+    // ========================================
+    window.attivaModalitaConfronto = function() {
+        modalitaConfronto = true;
+        proveSelezionate = [];
+        
+        // Mostra la barra di controllo
+        document.getElementById('barraConfronto').style.display = 'block';
+        
+        // Aggiungi classe al body per applicare stili speciali
+        document.body.classList.add('modalita-confronto');
+        
+        // Disabilita drag & drop
+        const raceRows = document.querySelectorAll('.race-row');
+        raceRows.forEach(row => {
+            row.draggable = false;
+            row.style.position = 'relative';
+        });
+        
+        aggiornaBarra();
+    };
+    
+    window.annullaModalitaConfronto = function() {
+        modalitaConfronto = false;
+        proveSelezionate = [];
+        
+        // Nascondi la barra di controllo
+        document.getElementById('barraConfronto').style.display = 'none';
+        
+        // Rimuovi classe dal body
+        document.body.classList.remove('modalita-confronto');
+        
+        // Riabilita drag & drop e rimuovi selezioni
+        const raceRows = document.querySelectorAll('.race-row');
+        raceRows.forEach(row => {
+            row.draggable = true;
+            row.classList.remove('selected-for-comparison');
+        });
+    };
+    
+    window.gestisciClickProva = function(raceId) {
+        if (modalitaConfronto) {
+            selezionaProvaPerConfronto(raceId);
+        } else {
+            apriProva(raceId);
+        }
+    };
+    
+    function selezionaProvaPerConfronto(raceId) {
+        const raceRow = document.querySelector(`[data-race-id="${raceId}"]`);
+        if (!raceRow) return;
+        
+        // Controlla se è già selezionata
+        const index = proveSelezionate.indexOf(raceId);
+        
+        if (index > -1) {
+            // Deseleziona
+            proveSelezionate.splice(index, 1);
+            raceRow.classList.remove('selected-for-comparison');
+        } else {
+            // Seleziona (massimo 2)
+            if (proveSelezionate.length < 2) {
+                proveSelezionate.push(raceId);
+                raceRow.classList.add('selected-for-comparison');
+            }
+        }
+        
+        aggiornaBarra();
+    }
+    
+    function aggiornaBarra() {
+        const conteggio = document.getElementById('conteggioSelezione');
+        const confermaBtn = document.getElementById('confermaConfronto');
+        const selectedFilesContainer = document.getElementById('selectedFilesContainer');
+        
+        conteggio.textContent = `${proveSelezionate.length} di 2 prove selezionate`;
+        confermaBtn.disabled = proveSelezionate.length !== 2;
+        
+        // Aggiorna la visualizzazione dei file selezionati
+        if (selectedFilesContainer) {
+            selectedFilesContainer.innerHTML = '';
+            
+            proveSelezionate.forEach(raceId => {
+                const raceRow = document.querySelector(`[data-race-id="${raceId}"]`);
+                if (raceRow) {
+                    const raceName = raceRow.querySelector('.race-name').textContent;
+                    
+                    const tag = document.createElement('span');
+                    tag.className = 'selected-file-tag';
+                    tag.innerHTML = `
+                        <i class="bi bi-file-earmark-text"></i>
+                        ${raceName}
+                        <button type="button" class="remove-btn" onclick="rimuoviProvaSelezionata(${raceId})">&times;</button>
+                    `;
+                    
+                    selectedFilesContainer.appendChild(tag);
+                }
+            });
+        }
+    }
+    
+    window.confermaConfronto = function() {
+        if (proveSelezionate.length === 2) {
+            const url = `/view_comparison_direct/${proveSelezionate[0]}/${proveSelezionate[1]}`;
+            window.location.href = url;
+        }
+    };
+    
+    window.rimuoviProvaSelezionata = function(raceId) {
+        const index = proveSelezionate.indexOf(raceId);
+        if (index > -1) {
+            proveSelezionate.splice(index, 1);
+            
+            // Rimuovi la classe di selezione dalla riga
+            const raceRow = document.querySelector(`[data-race-id="${raceId}"]`);
+            if (raceRow) {
+                raceRow.classList.remove('selected-for-comparison');
+            }
+            
+            aggiornaBarra();
+        }
+    };
+    
+    // ========================================
+    // 4. FUNZIONI DRAG & DROP GLOBALI
     // ========================================
     window.handleDragStart = function(event) {
         draggedRaceId = event.target.getAttribute('data-race-id');
@@ -570,7 +785,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // ========================================
-    // 4. CONTEXT MENU GLOBALE
+    // 5. CONTEXT MENU GLOBALE
     // ========================================
     window.showContextMenu = function(event, raceId, raceName) {
         event.preventDefault();
@@ -595,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ========================================
-    // 5. SPOSTA CORSA GLOBALE
+    // 6. SPOSTA CORSA GLOBALE
     // ========================================
     window.spostaCorsa = function(corsaId, cartellaId) {
         hideContextMenu();
@@ -622,7 +837,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // ========================================
-    // 6. MODALI CARTELLE
+    // 7. MODALI CARTELLE
     // ========================================
     const rinominaModal = document.getElementById('rinominaCartellaModal');
     if (rinominaModal) {
@@ -651,7 +866,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ========================================
-    // 7. FILTRI E RICERCA
+    // 8. FILTRI E RICERCA
     // ========================================
     const searchInput = document.getElementById('searchInput');
     const dataFilter = document.getElementById('dataFilter');
@@ -820,14 +1035,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ========================================
-    // 8. APRI PROVA AL CLICK
+    // 9. GESTISCI CLICK PROVA (VIEW O CONFRONTO)
     // ========================================
+    function gestisciClickProva(id) {
+        if (modalitaConfronto) {
+            selezionaProvaPerConfronto(id);
+        } else {
+            window.location.href = '/view_race_direct/' + id;
+        }
+    }
+    
+    // Funzione backward compatibility
     window.apriProva = function(raceId) {
-        window.location.href = '/view_race_direct/' + raceId;
+        gestisciClickProva(raceId);
     };
     
     // ========================================
-    // 9. MODAL SPOSTA CORSA
+    // 10. MODAL SPOSTA CORSA
     // ========================================
     let corsaDaSpostare = null;
     

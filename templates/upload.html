@@ -426,14 +426,8 @@ document.addEventListener('DOMContentLoaded', function() {
             raceName += `[ ${formattedDate} ]`;
         }
         
-        // Prepara la lista dei nomi (pilota + spingitori)
+        // Prepara la lista dei nomi (solo spingitori)
         let nomiList = [];
-        
-        // Aggiungi pilota se selezionato
-        if (pilotSelect.value) {
-            const selectedPilot = pilotSelect.options[pilotSelect.selectedIndex].text;
-            nomiList.push(selectedPilot);
-        }
         
         // Aggiungi spingitori se presenti
         const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');

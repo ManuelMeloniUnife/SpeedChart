@@ -1,5 +1,4 @@
 # models.py
-# models.py
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -11,43 +10,30 @@ class Cartella(db.Model):
     colore = db.Column(db.String(7), default='#007bff')  # Colore esadecimale per personalizzazione
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Campo per cartelle annidate
-    parent_id = db.Column(db.Integer, db.ForeignKey('cartella.id'), nullable=True)
+    # Relazione gerarchica con se stessa per cartelle nidificate
+    cartella_padre_id = db.Column(db.Integer, db.ForeignKey('cartella.id'), nullable=True)
+    sottocartelle = db.relationship('Cartella', 
+                                  backref=db.backref('cartella_padre', remote_side=[id]),
+                                  lazy=True)
     
-    # Relazioni
-    parent = db.relationship('Cartella', remote_side=[id], backref='subcartelle')
+    # Relazione con le corse
     races = db.relationship('Race', backref='cartella', lazy=True, cascade="all, delete-orphan")
+    
+    # Alias per compatibilità con il codice esistente
+    @property
+    def corse(self):
+        """Alias per races - per compatibilità"""
+        return self.races
     
     def __repr__(self):
         return f"Cartella('{self.nome}')"
     
-    @property
-    def full_path(self):
-        """Restituisce il percorso completo della cartella"""
-        if self.parent:
-            return f"{self.parent.full_path} > {self.nome}"
-        return self.nome
-    
-    @property
-    def level(self):
-        """Restituisce il livello di annidamento (0 = radice)"""
-        if self.parent:
-            return self.parent.level + 1
-        return 0
-    
-    def get_all_races_recursive(self):
-        """Ottiene tutte le corse di questa cartella e delle sue sottocartelle"""
-        races = list(self.races)
-        for subcartella in self.subcartelle:
-            races.extend(subcartella.get_all_races_recursive())
-        return races
-    
     @staticmethod
     def get_default_folder():
         """Ottiene o crea la cartella predefinita 'Generale'"""
-        cartella_generale = Cartella.query.filter_by(nome='Generale', parent_id=None).first()
+        cartella_generale = Cartella.query.filter_by(nome='Generale').first()
         if not cartella_generale:
-            cartella_generale = Cartella(nome='Generale', colore='#6c757d', parent_id=None)
+            cartella_generale = Cartella(nome='Generale', colore='#6c757d')
             db.session.add(cartella_generale)
             db.session.commit()
         return cartella_generale
@@ -73,6 +59,7 @@ class Spingitore(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100))
     ruolo = db.Column(db.String(20), nullable=False, default='Spingitore')  # 'Pilota' o 'Spingitore'
+    attivo = db.Column(db.Boolean, default=True)  # Campo per gestire spingitori attivi/inattivi
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -105,22 +92,28 @@ class Race(db.Model):
     # Relazione con DataPoint
     data_points = db.relationship('DataPoint', backref='race', lazy=True, cascade="all, delete-orphan")
     
+    # Alias per compatibilità con le route
+    @property
+    def race_spingitori(self):
+        """Alias per race_spingitori_ordered - per compatibilità"""
+        return self.race_spingitori_ordered
+    
     def __repr__(self):
         return f"Race('{self.name}', '{self.date}')"
     
     # Helper per ottenere pilota e spingitori separatamente
     def get_pilota(self):
-        """Ritorna il pilota (ordine_esecuzione = 0)"""
+        """Ritorna il pilota (ordine_esecuzione = 1)"""
         return db.session.query(Spingitore).join(RaceSpingitore)\
                          .filter(RaceSpingitore.race_id == self.id)\
-                         .filter(RaceSpingitore.ordine_esecuzione == 0)\
+                         .filter(RaceSpingitore.ordine_esecuzione == 1)\
                          .first()
     
     def get_spingitori_only(self):
-        """Ritorna solo gli spingitori (ordine_esecuzione > 0) ordinati"""
+        """Ritorna solo gli spingitori (ordine_esecuzione > 1) ordinati"""
         return db.session.query(Spingitore).join(RaceSpingitore)\
                          .filter(RaceSpingitore.race_id == self.id)\
-                         .filter(RaceSpingitore.ordine_esecuzione > 0)\
+                         .filter(RaceSpingitore.ordine_esecuzione > 1)\
                          .order_by(RaceSpingitore.ordine_esecuzione).all()
     
     def get_all_members_ordered(self):

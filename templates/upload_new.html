@@ -3,35 +3,35 @@
 {% block title %}Upload Prova - SpeedChart{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-2">
+<div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white py-2">
-                    <h5 class="mb-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
                         <i class="bi bi-cloud-upload me-2"></i>
                         Upload Nuova Prova
-                    </h5>
+                    </h4>
                 </div>
-                <div class="card-body p-3">
+                <div class="card-body">
                     <form method="post" enctype="multipart/form-data" id="upload-form">
                         <div class="row">
                             <!-- Colonna sinistra: Upload e informazioni -->
                             <div class="col-lg-6">
                                 <!-- Upload File -->
-                                <div class="mb-3">
-                                    <label for="file" class="form-label small">File da Caricare</label>
-                                    <input type="file" class="form-control form-control-sm" name="file" id="file" 
+                                <div class="mb-4">
+                                    <label for="file" class="form-label">File da Caricare</label>
+                                    <input type="file" class="form-control" name="file" id="file" 
                                            accept=".csv,.txt,.log" required>
-                                    <div class="form-text small">
+                                    <div class="form-text">
                                         Formati supportati: CSV, TXT, LOG
                                     </div>
                                 </div>
 
                                 <!-- Informazioni Prova -->
-                                <div class="mb-2">
-                                    <label for="race_name" class="form-label small">Nome Prova</label>
-                                    <div class="input-group input-group-sm">
+                                <div class="mb-3">
+                                    <label for="race_name" class="form-label">Nome Prova</label>
+                                    <div class="input-group">
                                         <input type="text" class="form-control" name="race_name" 
                                                id="race_name" required>
                                         <button type="button" class="btn btn-outline-secondary" 
@@ -41,28 +41,28 @@
                                     </div>
                                 </div>
 
-                                <div class="mb-2">
-                                    <label for="date" class="form-label small">Data</label>
-                                    <input type="date" class="form-control form-control-sm" name="date" id="date" required value="{{ today }}">
+                                <div class="mb-3">
+                                    <label for="date" class="form-label">Data</label>
+                                    <input type="date" class="form-control" name="date" id="date" required>
                                 </div>
 
-                                <div class="mb-2">
-                                    <label for="pilota_id" class="form-label small">Pilota</label>
-                                    <select class="form-select form-select-sm" name="pilota_id" id="pilota_id" required>
+                                <div class="mb-3">
+                                    <label for="pilota_id" class="form-label">Pilota</label>
+                                    <select class="form-select" name="pilota_id" id="pilota_id" required>
                                         <option value="">Seleziona un pilota</option>
                                         {% for pilota in piloti %}
-                                            <option value="{{ pilota.id }}">{{ pilota.nome }} {{ pilota.cognome if pilota.cognome else '' }}</option>
+                                            <option value="{{ pilota.id }}">{{ pilota.name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
 
                                 <!-- Cartella -->
-                                <div class="mb-2">
-                                    <label for="cartella_id" class="form-label small">Cartella</label>
-                                    <select class="form-select form-select-sm" name="cartella_id" id="cartella_id">
+                                <div class="mb-3">
+                                    <label for="cartella_id" class="form-label">Cartella</label>
+                                    <select class="form-select" name="cartella_id" id="cartella_id">
                                         <option value="">Nessuna cartella</option>
                                         {% for cartella in cartelle %}
-                                            <option value="{{ cartella.id }}">{{ cartella.nome }}</option>
+                                            <option value="{{ cartella.id }}">{{ cartella.path }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -70,27 +70,27 @@
 
                             <!-- Colonna destra: Gestione Spingitori -->
                             <div class="col-lg-6">
-                                <div class="mb-3">
-                                    <h6 class="text-muted mb-2">
-                                        <i class="bi bi-people me-1"></i>
+                                <div class="mb-4">
+                                    <h5 class="text-muted mb-3">
+                                        <i class="bi bi-people me-2"></i>
                                         Spingitori (Opzionale)
-                                    </h6>
+                                    </h5>
                                     
                                     <!-- Lista Piloti Disponibili -->
-                                    <div class="mb-2">
+                                    <div class="mb-3">
                                         <label class="form-label small">Piloti Disponibili</label>
                                         <div id="available-pilots" class="border rounded p-2" 
-                                             style="max-height: 160px; overflow-y: auto; background-color: #f8f9fa;">
-                                            {% for spingitore in spingitori_attivi %}
+                                             style="max-height: 200px; overflow-y: auto; background-color: #f8f9fa;">
+                                            {% for spingitore in spingitori %}
                                             <div class="pilot-item available-pilot" 
                                                  data-id="{{ spingitore.id }}" 
-                                                 data-name="{{ spingitore.nome }} {{ spingitore.cognome if spingitore.cognome else '' }}"
+                                                 data-name="{{ spingitore.name }}"
                                                  style="cursor: pointer;">
-                                                <div class="d-flex align-items-center p-1 mb-1 bg-white rounded border">
-                                                    <div class="pilot-avatar me-2">{{ spingitore.nome[0] }}{{ spingitore.cognome[0] if spingitore.cognome else '' }}</div>
+                                                <div class="d-flex align-items-center p-2 mb-1 bg-white rounded border">
+                                                    <div class="pilot-avatar me-2">{{ spingitore.name.split(' ')[0][0] }}{{ spingitore.name.split(' ')[-1][0] if spingitore.name.split(' ')|length > 1 else '' }}</div>
                                                     <div class="pilot-info">
-                                                        <div class="pilot-name small fw-bold">{{ spingitore.nome }} {{ spingitore.cognome if spingitore.cognome else '' }}</div>
-                                                        <small class="text-muted" style="font-size: 0.7rem;">Click per aggiungere</small>
+                                                        <div class="pilot-name small fw-bold">{{ spingitore.name }}</div>
+                                                        <small class="text-muted">Click per aggiungere</small>
                                                     </div>
                                                 </div>
                                             </div>
@@ -99,17 +99,17 @@
                                     </div>
 
                                     <!-- Ordine Staffetta -->
-                                    <div class="mb-2">
+                                    <div class="mb-3">
                                         <label class="form-label small">Ordine Staffetta</label>
-                                        <div id="relay-order" class="border rounded p-2" 
-                                             style="min-height: 120px; background-color: #fff;">
-                                            <div class="empty-relay-message text-center text-muted p-2">
+                                        <div id="relay-order" class="border rounded p-3" 
+                                             style="min-height: 150px; background-color: #fff;">
+                                            <div class="empty-relay-message text-center text-muted p-3">
                                                 <i class="bi bi-arrow-up"></i><br>
-                                                <small style="font-size: 0.7rem;">Clicca sui piloti sopra per aggiungerli alla staffetta</small>
+                                                <small>Clicca sui piloti sopra per aggiungerli alla staffetta</small>
                                             </div>
                                         </div>
-                                        <small class="form-text text-muted" style="font-size: 0.7rem;">
-                                            Usa le frecce per riordinare gli spingitori
+                                        <small class="form-text text-muted">
+                                            Trascina per riordinare gli spingitori
                                         </small>
                                     </div>
 
@@ -122,13 +122,13 @@
                         <!-- Bottoni -->
                         <div class="row">
                             <div class="col-12">
-                                <hr class="my-2">
+                                <hr>
                                 <div class="d-flex justify-content-between">
-                                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-sm">
+                                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                                         <i class="bi bi-arrow-left me-1"></i>
                                         Annulla
                                     </a>
-                                    <button type="submit" class="btn btn-primary btn-sm">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="bi bi-upload me-1"></i>
                                         Carica Prova
                                     </button>
@@ -149,8 +149,8 @@
 }
 
 .pilot-avatar {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
@@ -158,7 +158,7 @@
     justify-content: center;
     color: white;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .available-pilot:hover {
@@ -167,11 +167,12 @@
 }
 
 .relay-item {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    cursor: move;
     background: white;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    padding: 6px;
+    padding: 8px;
 }
 
 .relay-item:hover {
@@ -179,44 +180,24 @@
     box-shadow: 0 2px 4px rgba(0,123,255,0.15);
 }
 
-.remove-btn, .move-up-btn, .move-down-btn {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
+.relay-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.relay-item.drag-over {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.remove-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 991px) {
-    .pilot-avatar {
-        width: 24px;
-        height: 24px;
-        font-size: 10px;
-    }
-    
-    .remove-btn, .move-up-btn, .move-down-btn {
-        width: 18px;
-        height: 18px;
-        font-size: 9px;
-    }
-}
-
-@media (max-width: 576px) {
-    .card-body {
-        padding: 1rem !important;
-    }
-    
-    .pilot-name {
-        font-size: 0.8rem !important;
-    }
-    
-    .form-label {
-        font-size: 0.8rem !important;
-    }
 }
 </style>
 
@@ -227,50 +208,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const availablePilots = document.getElementById('available-pilots');
     const relayOrder = document.getElementById('relay-order');
     const spingitoriOrderInput = document.getElementById('spingitori_order');
-    const fileInput = document.getElementById('file');
-    const dateInput = document.getElementById('date');
-    
-    // =========================================
-    // LETTURA DATA DAL FILE
-    // =========================================
-    
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const content = event.target.result;
-            const lines = content.split('\n');
-            
-            // La data dovrebbe essere nella seconda riga (indice 1)
-            if (lines.length >= 2) {
-                const dateLineWithTime = lines[1].trim();
-                
-                // Estraiamo solo la parte della data (formato DD/MM/YYYY)
-                const dateMatch = dateLineWithTime.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-                
-                if (dateMatch) {
-                    const [, day, month, year] = dateMatch;
-                    // Formattiamo per il campo date HTML (YYYY-MM-DD)
-                    const formattedDate = `${year}-${month}-${day}`;
-                    dateInput.value = formattedDate;
-                    
-                    console.log(`Data estratta dal file: ${day}/${month}/${year} -> ${formattedDate}`);
-                } else {
-                    console.warn('Formato data non riconosciuto nella riga:', dateLineWithTime);
-                }
-            } else {
-                console.warn('File troppo corto, impossibile estrarre la data');
-            }
-        };
-        
-        reader.onerror = function() {
-            console.error('Errore nella lettura del file');
-        };
-        
-        reader.readAsText(file);
-    });
     
     // =========================================
     // GESTIONE CLICK SUI PILOTI DISPONIBILI
@@ -302,21 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
         relayItem.className = 'pilot-item relay-item';
         relayItem.dataset.id = pilotId;
         relayItem.dataset.name = pilotName;
+        relayItem.draggable = true;
         
         relayItem.innerHTML = `
             <div class="d-flex align-items-center">
                 <div class="pilot-avatar me-2">${pilotName.split(' ').map(n => n[0]).join('')}</div>
                 <div class="pilot-info flex-grow-1">
-                    <div class="pilot-name small">${pilotName}</div>
-                    <small class="text-muted" style="font-size: 0.7rem;">Ordine: <span class="order-number"></span></small>
-                </div>
-                <div class="d-flex gap-1 me-1">
-                    <button type="button" class="btn btn-sm btn-outline-primary move-up-btn" title="Sposta su">
-                        <i class="bi bi-arrow-up"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary move-down-btn" title="Sposta giù">
-                        <i class="bi bi-arrow-down"></i>
-                    </button>
+                    <div class="pilot-name">${pilotName}</div>
+                    <small class="text-muted">Ordine: <span class="order-number"></span></small>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-danger remove-btn" title="Rimuovi">
                     <i class="bi bi-x"></i>
@@ -326,27 +256,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         relayOrder.appendChild(relayItem);
         
-        // Aggiungi event listener per i bottoni
+        // Aggiungi event listener per il bottone rimuovi
         const removeBtn = relayItem.querySelector('.remove-btn');
-        const moveUpBtn = relayItem.querySelector('.move-up-btn');
-        const moveDownBtn = relayItem.querySelector('.move-down-btn');
-        
         removeBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
             removeFromRelay(relayItem);
-        });
-        
-        moveUpBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            moveUp(relayItem);
-        });
-        
-        moveDownBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            moveDown(relayItem);
         });
         
         // Nascondi il pilota dalla lista disponibili
@@ -354,6 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         updateOrderNumbers();
         updateFormInput();
+        setupDragAndDrop();
     }
     
     function removeFromRelay(pilotItem) {
@@ -398,25 +314,69 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // =========================================
-    // MOVIMENTO CON FRECCE
+    // DRAG AND DROP
     // =========================================
     
-    function moveUp(item) {
-        const prevItem = item.previousElementSibling;
-        if (prevItem && !prevItem.classList.contains('empty-relay-message')) {
-            item.parentNode.insertBefore(item, prevItem);
-            updateOrderNumbers();
-            updateFormInput();
-        }
+    let draggedElement = null;
+    
+    function setupDragAndDrop() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        
+        relayItems.forEach(item => {
+            // Rimuovi event listener precedenti
+            item.removeEventListener('dragstart', handleDragStart);
+            item.removeEventListener('dragend', handleDragEnd);
+            item.removeEventListener('dragover', handleDragOver);
+            item.removeEventListener('drop', handleDrop);
+            
+            // Aggiungi nuovi event listener
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+        });
     }
     
-    function moveDown(item) {
-        const nextItem = item.nextElementSibling;
-        if (nextItem) {
-            item.parentNode.insertBefore(nextItem, item);
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        // Rimuovi tutti gli indicatori di drag over
+        relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+        return false;
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            // Inserisce l'elemento trascinato PRIMA dell'elemento target
+            this.parentNode.insertBefore(draggedElement, this);
+            
             updateOrderNumbers();
             updateFormInput();
         }
+        
+        this.classList.remove('drag-over');
+        return false;
     }
     
     // =========================================
@@ -431,6 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-fill nome prova (attivato solo dal bottone)
     function generateRaceName() {
+        const pilotSelect = document.getElementById('pilota_id');
         const dateInput = document.getElementById('date');
         const raceNameInput = document.getElementById('race_name');
         
@@ -442,19 +403,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
-            raceName += `[ ${day}/${month}/${year} ] - `;
+            raceName += `[ ${day}/${month}/${year} ]  -  `;
         }
         
-        // Aggiungi SOLO spingitori dalla staffetta (NON il pilota)
+        // Aggiungi pilota selezionato
+        if (pilotSelect.value) {
+            const selectedOption = pilotSelect.options[pilotSelect.selectedIndex];
+            raceName += selectedOption.text;
+        }
+        
+        // Aggiungi spingitori dalla staffetta
         const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
         if (relayItems.length > 0) {
             const spingitoriNames = Array.from(relayItems).map(item => item.dataset.name);
-            raceName += spingitoriNames.join(', ');
-        } else {
-            // Se non ci sono spingitori, lascia solo la data
-            if (!raceName) {
-                raceName = 'Prova senza data';
-            }
+            raceName += ', ' + spingitoriNames.join(', ');
         }
         
         raceNameInput.value = raceName;

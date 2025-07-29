@@ -15,18 +15,17 @@
     
     <style>
         #data-table {
-            height: 50vh; /* Ridotto per schermi piccoli */
+            height: 65vh;
             overflow-y: auto;
         }
         .table-row.active {
             background-color: #007bff20 !important;
         }
         #chart-container {
-            height: 50vh; /* Ridotto per evitare scrolling */
+            height: 75vh;
         }
         #selected-point-details {
-            min-height: 60px; /* Più compatto */
-            max-height: 80px;
+            min-height: 80px;
         }
         .selected-point {
             stroke: #ff0000 !important;
@@ -57,17 +56,17 @@
         
         .race-info {
             background: white;
-            border-radius: 6px; /* Ridotto da 8px */
-            padding: 0.75rem; /* Ridotto da 1.5rem */
-            margin: 0.5rem 0; /* Ridotto margin */
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1); /* Shadow più leggera */
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .chart-panel {
             background: white;
-            border-radius: 6px; /* Ridotto da 8px */
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1); /* Shadow più leggera */
-            padding: 0.75rem; /* Ridotto da 1rem */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1rem;
         }
         
         .data-panel {
@@ -79,42 +78,6 @@
         
         body {
             background-color: #f8f9fa;
-        }
-        
-        /* Media queries per schermi piccoli */
-        @media (max-width: 992px) {
-            /* Su tablet, stack verticale */
-            .col-md-9, .col-md-3 {
-                flex: 0 0 100%;
-                max-width: 100%;
-            }
-            #chart-container {
-                height: 45vh;
-            }
-            #data-table {
-                height: 30vh;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            /* Su mobile, ancora più compatto */
-            #chart-container {
-                height: 40vh;
-            }
-            #data-table {
-                height: 25vh;
-            }
-            .header-bar {
-                padding: 0.5rem 0;
-            }
-            .chart-panel {
-                padding: 0.75rem;
-                margin-bottom: 0.75rem;
-            }
-            #selected-point-details {
-                min-height: 50px;
-                max-height: 70px;
-            }
         }
     </style>
 </head>
@@ -138,23 +101,23 @@
 
     <div class="container-fluid">
         <!-- Informazioni gara compatte -->
-        <div class="race-info py-2 my-2"> <!-- Ridotto padding e margin -->
+        <div class="race-info">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <div class="row">
                         <div class="col-md-4">
-                            <small><strong><i class="bi bi-calendar3 me-1"></i> Data:</strong> {{ race.date.strftime('%d/%m/%Y') }}</small>
+                            <strong><i class="bi bi-calendar3 me-1"></i> Data:</strong> {{ race.date.strftime('%d/%m/%Y %H:%M') }}
                         </div>
                         <div class="col-md-4">
-                            <small><strong><i class="bi bi-person-fill-gear me-1"></i> Pilota:</strong> {{ race.get_pilota_name() }}</small>
+                            <strong><i class="bi bi-person-fill-gear me-1"></i> Pilota:</strong> {{ race.get_pilota_name() }}
                         </div>
                         <div class="col-md-4">
-                            <small><strong><i class="bi bi-people-fill me-1"></i> Spingitori:</strong> {{ race.get_spingitori_names() }}</small>
+                            <strong><i class="bi bi-people-fill me-1"></i> Team:</strong> {{ race.get_all_names() }}
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4 text-end">
-                    <a href="{{ url_for('main.visualizza_dati') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ url_for('main.visualizza_dati') }}" class="btn btn-outline-primary">
                         <i class="bi bi-arrow-left me-1"></i> Torna alla lista
                     </a>
                 </div>
@@ -389,10 +352,10 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'markers',
             marker: {
                 color: 'red',
-                size: 5, // Ridotto da 10 a 5 (circa la metà)
+                size: 10,
                 line: {
                     color: 'darkred',
-                    width: 1 // Ridotto anche il bordo
+                    width: 2
                 }
             },
             showlegend: false,

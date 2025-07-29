@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+
+{% block title %}SpeedChart - Carica Dati{% endblock %}
+
+{% block styles %}
+<style>
+/* Stili per il sistema di ordinamento spingitori */
+.pilot-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.pilot-item:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pilot-item.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.pilot-item.relay-item {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    position: relative;
+}
+
+.pilot-item.relay-item::before {
+    content: counter(relay-counter);
+    counter-increment: relay-counter;
+    position: absolute;
+    left: -10px;
+    top: -10px;
+    background: #2196f3;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#relay-order {
+    counter-reset: relay-counter;
+}
+
+.pilot-avatar {
+    width: 32px;
+    height: 32px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.pilot-name {
+    font-weight: 500;
+}
+
+.sortable-container {
+    min-height: 50px;
+}
+
+.empty-relay-message {
+    color: #6c757d !important;
+}
+
+.drag-over {
+    background-color: #fff3cd !important;
+    border-color: #ffc107 !important;
+}
+
+.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+/* Lista spingitori scorrevole */
+.spingitori-scrollable {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+/* Barra di ricerca spingitori */
+.search-spingitori {
+    position: sticky;
+    top: 0;
+    background: white;
+    padding: 8px;
+    border-bottom: 1px solid #dee2e6;
+    z-index: 10;
+}
+
+/* Campo obbligatorio con asterisco rosso */
+.required-asterisk {
+    color: #dc3545;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Carica Dati Corsa</h2>
+        <p>Seleziona un file .txt dal computer di bordo della tua macchinina.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">File dati (.txt) <span class="required-asterisk">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required accept=".txt">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="race_name" class="form-label">Nome della prova <span class="required-asterisk">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="race_name" name="race_name" required>
+                            <button type="button" class="btn btn-outline-secondary" id="auto-fill-btn" title="Auto-riempimento">
+                                <i class="bi bi-magic"></i> Auto
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Data <span class="required-asterisk">*</span></label>
+                        <input type="date" class="form-control" id="date" name="date" required value="{{ today }}">
+                    </div>
+                    
+                    <!-- Selezione Pilota (obbligatorio) -->
+                    <div class="mb-3">
+                        <label for="pilota_id" class="form-label">Pilota <span class="required-asterisk">*</span></label>
+                        <select class="form-select" id="pilota_id" name="pilota_id" required>
+                            <option value="">Seleziona un pilota...</option>
+                            {% for pilota in piloti %}
+                            <option value="{{ pilota.id }}">{{ pilota.nome_completo() }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not piloti %}
+                            <div class="form-text text-warning mt-2">
+                                Non sono presenti piloti. <a href="{{ url_for('team.gestione_team') }}">Aggiungi un pilota</a> prima di caricare dati.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Selezione Spingitori per Staffette (opzionale) -->
+                    <div class="mb-3">
+                        <div class="row">
+                            <!-- Lista spingitori disponibili -->
+                            <div class="col-md-6">
+                                <h6>Spingitori Disponibili</h6>
+                                <div class="spingitori-scrollable">
+                                    <!-- Barra di ricerca -->
+                                    <div class="search-spingitori">
+                                        <input type="text" class="form-control form-control-sm" id="search-spingitori" placeholder="🔍 Cerca spingitori...">
+                                    </div>
+                                    
+                                    <div id="available-pilots" class="sortable-container p-2">
+                                        {% for spingitore in spingitori_attivi %}
+                                        <div class="pilot-item available" data-id="{{ spingitore.id }}" data-name="{{ spingitore.nome_completo() }}" data-search="{{ spingitore.nome_completo().lower() }}">
+                                            <div class="d-flex align-items-center">
+                                                <div class="pilot-avatar me-2">{{ spingitore.nome[0] }}{{ spingitore.cognome[0] if spingitore.cognome else "" }}</div>
+                                                <div class="pilot-info">
+                                                    <div class="pilot-name">{{ spingitore.nome_completo() }}</div>
+                                                    <small class="text-muted">{{ spingitore.ruolo }}</small>
+                                                </div>
+                                                <i class="bi bi-plus-circle ms-auto text-primary"></i>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Lista ordine staffetta -->
+                            <div class="col-md-6">
+                                <h6>Ordine dei Cambi</h6>
+                                <div class="border rounded p-2" style="min-height: 270px; background-color: #e3f2fd;">
+                                    <div id="relay-order" class="sortable-container">
+                                        <div class="empty-relay-message text-center text-muted p-4">
+                                            <i class="bi bi-arrow-left-circle fs-3 mb-2"></i>
+                                            <div>Aggiungi spingitori dalla lista a sinistra</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campo nascosto per l'ordine -->
+                        <input type="hidden" id="spingitori_order" name="spingitori_order">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" {% if not piloti %}disabled{% endif %}>Carica e analizza</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const availablePilots = document.getElementById('available-pilots');
+    const relayOrder = document.getElementById('relay-order');
+    const spingitoriOrderInput = document.getElementById('spingitori_order');
+    const form = document.querySelector('form');
+    
+    // =========================================
+    // GESTIONE CLICK SUI PILOTI DISPONIBILI
+    // =========================================
+    availablePilots.addEventListener('click', function(e) {
+        const pilotItem = e.target.closest('.pilot-item');
+        if (!pilotItem) return;
+        
+        addToRelay(pilotItem);
+    });
+    
+    // =========================================
+    // EVENT DELEGATION PER RIMOZIONE
+    // =========================================
+    relayOrder.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-btn');
+        if (removeBtn) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            const relayItem = removeBtn.closest('.pilot-item');
+            if (relayItem) {
+                removeFromRelay(relayItem);
+            }
+        }
+    });
+    
+    // =========================================
+    // DRAG AND DROP MANAGEMENT
+    // =========================================
+    let draggedElement = null;
+    
+    // Aggiungi event listener per drag and drop usando event delegation
+    relayOrder.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('pilot-item') && !e.target.classList.contains('empty-relay-message')) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    });
+    
+    relayOrder.addEventListener('dragend', function(e) {
+        if (e.target.classList.contains('pilot-item')) {
+            e.target.classList.remove('dragging');
+            
+            // Rimuovi tutti gli indicatori di drag over
+            relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+        }
+    });
+    
+    relayOrder.addEventListener('dragover', function(e) {
+        const target = e.target.closest('.pilot-item');
+        if (target && !target.classList.contains('empty-relay-message') && target !== draggedElement) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            // Rimuovi drag-over da tutti gli elementi
+            relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            // Aggiungi drag-over solo al target corrente
+            target.classList.add('drag-over');
+        }
+    });
+    
+    relayOrder.addEventListener('drop', function(e) {
+        const target = e.target.closest('.pilot-item');
+        if (target && !target.classList.contains('empty-relay-message') && target !== draggedElement && draggedElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Inserisce l'elemento trascinato PRIMA dell'elemento target
+            relayOrder.insertBefore(draggedElement, target);
+            
+            updateOrderNumbers();
+            updateFormInput();
+        }
+        
+        // Rimuovi tutti gli indicatori
+        relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    });
+    
+    // =========================================
+    // FUNZIONI HELPER
+    // =========================================
+    
+    function addToRelay(pilotItem) {
+        const pilotId = pilotItem.dataset.id;
+        const pilotName = pilotItem.dataset.name;
+        
+        // Nascondi il messaggio vuoto
+        const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+        if (emptyMessage) {
+            emptyMessage.style.display = 'none';
+        }
+        
+        // Crea nuovo elemento per la staffetta
+        const relayItem = document.createElement('div');
+        relayItem.className = 'pilot-item relay-item';
+        relayItem.dataset.id = pilotId;
+        relayItem.dataset.name = pilotName;
+        relayItem.draggable = true;
+        
+        relayItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="pilot-avatar me-2">${pilotName.split(' ').map(n => n[0]).join('')}</div>
+                <div class="pilot-info flex-grow-1">
+                    <div class="pilot-name">${pilotName}</div>
+                    <small class="text-muted">Ordine: <span class="order-number"></span></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-btn" title="Rimuovi">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `;
+        
+        relayOrder.appendChild(relayItem);
+        
+        // Nascondi il pilota dalla lista disponibili
+        pilotItem.style.display = 'none';
+        
+        updateOrderNumbers();
+        updateFormInput();
+    }
+    
+    function removeFromRelay(relayItem) {
+        const pilotId = relayItem.dataset.id;
+        
+        // Rimuovi dalla staffetta
+        relayItem.remove();
+        
+        // Mostra di nuovo nella lista disponibili
+        const availableItem = availablePilots.querySelector(`[data-id="${pilotId}"]`);
+        if (availableItem) {
+            availableItem.style.display = 'block';
+        }
+        
+        // Mostra messaggio vuoto se necessario
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        if (relayItems.length === 0) {
+            const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+            }
+        }
+        
+        updateOrderNumbers();
+        updateFormInput();
+    }
+    
+    function updateOrderNumbers() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        relayItems.forEach((item, index) => {
+            const orderSpan = item.querySelector('.order-number');
+            if (orderSpan) {
+                orderSpan.textContent = index + 1;
+            }
+        });
+    }
+    
+    function updateFormInput() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        const orderArray = Array.from(relayItems).map(item => item.dataset.id);
+        spingitoriOrderInput.value = orderArray.join(',');
+    }
+            }
+            return;
+        }
+    });
+    
+    // Funzione per aggiungere un pilota alla staffetta
+    function addToRelay(pilotItem) {
+        const pilotId = pilotItem.dataset.id;
+        const pilotName = pilotItem.dataset.name;
+        
+        // Nascondi il messaggio vuoto
+        const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+        if (emptyMessage) {
+            emptyMessage.style.display = 'none';
+        }
+        
+        // Crea nuovo elemento per la staffetta
+        const relayItem = document.createElement('div');
+        relayItem.className = 'pilot-item relay-item';
+        relayItem.dataset.id = pilotId;
+        relayItem.dataset.name = pilotName;
+        relayItem.draggable = true;
+        
+        relayItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="pilot-avatar me-2">${pilotName.split(' ').map(n => n[0]).join('')}</div>
+                <div class="pilot-info flex-grow-1">
+                    <div class="pilot-name">${pilotName}</div>
+                    <small class="text-muted">Ordine: <span class="order-number"></span></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-btn" title="Rimuovi">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `;
+        
+        relayOrder.appendChild(relayItem);
+        
+        // Aggiungi event listener direttamente al bottone appena creato
+        const removeBtn = relayItem.querySelector('.remove-btn');
+        removeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            removeFromRelay(relayItem);
+        });
+        
+        // Nascondi il pilota dalla lista disponibili
+        pilotItem.style.display = 'none';
+        
+        updateOrderNumbers();
+        updateFormInput();
+        setupDragAndDrop();
+    }
+    
+    // Funzione per rimuovere un pilota dalla staffetta
+    function removeFromRelay(pilotItem) {
+        const pilotId = pilotItem.dataset.id;
+        
+        // Rimuovi dalla staffetta
+        pilotItem.remove();
+        
+        // Mostra di nuovo nella lista disponibili
+        const availableItem = availablePilots.querySelector(`[data-id="${pilotId}"]`);
+        if (availableItem) {
+            availableItem.style.display = 'block';
+        }
+        
+        // Mostra messaggio vuoto se necessario
+        if (relayOrder.children.length === 1) { // solo empty message
+            const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+            }
+        }
+        
+        updateOrderNumbers();
+        updateFormInput();
+    }
+    
+    // Aggiorna i numeri d'ordine
+    function updateOrderNumbers() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        relayItems.forEach((item, index) => {
+            const orderSpan = item.querySelector('.order-number');
+            if (orderSpan) {
+                orderSpan.textContent = index + 1;
+            }
+        });
+    }
+    
+    // Aggiorna il campo nascosto del form
+    function updateFormInput() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        const orderArray = Array.from(relayItems).map(item => item.dataset.id);
+        spingitoriOrderInput.value = orderArray.join(',');
+    }
+    
+    // Setup drag and drop
+    function setupDragAndDrop() {
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        
+        relayItems.forEach(item => {
+            // Aggiungi gli event listener per drag and drop senza clonare
+            // (per preservare l'event listener del bottone remove)
+            
+            // Rimuovi event listener precedenti se esistono
+            item.removeEventListener('dragstart', handleDragStart);
+            item.removeEventListener('dragend', handleDragEnd);
+            item.removeEventListener('dragover', handleDragOver);
+            item.removeEventListener('drop', handleDrop);
+            
+            // Aggiungi nuovi event listener
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+        });
+    }
+    
+    let draggedElement = null;
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        // Rimuovi tutti gli indicatori di drag over
+        relayOrder.querySelectorAll('.pilot-item').forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+        return false;
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            // Inserisce l'elemento trascinato PRIMA dell'elemento target
+            this.parentNode.insertBefore(draggedElement, this);
+            
+            updateOrderNumbers();
+            updateFormInput();
+        }
+        
+        this.classList.remove('drag-over');
+        return false;
+    }
+    
+    // Validazione form
+    form.addEventListener('submit', function(e) {
+        // Rimuoviamo la validazione che richiedeva spingitori obbligatori
+        // Ora gli spingitori sono opzionali
+        return true;
+    });
+    
+    // **FUNZIONE 1: Generazione automatica del nome della prova (ora attivata solo dal bottone)**
+    function generateRaceName() {
+        const pilotSelect = document.getElementById('pilota_id');
+        const dateInput = document.getElementById('date');
+        const raceNameInput = document.getElementById('race_name');
+        
+        let raceName = '';
+        
+        // Aggiungi data se presente con parentesi quadre e spazi
+        if (dateInput.value) {
+            const date = new Date(dateInput.value);
+            const formattedDate = date.toLocaleDateString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            raceName += `[ ${formattedDate} ]`;
+        }
+        
+        // Prepara la lista dei nomi (solo spingitori)
+        let nomiList = [];
+        
+        // Aggiungi spingitori se presenti
+        const relayItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        if (relayItems.length > 0) {
+            const spingitoriNames = Array.from(relayItems).map(item => item.dataset.name);
+            nomiList = nomiList.concat(spingitoriNames);
+        }
+        
+        // Se abbiamo nomi da aggiungere, aggiungi il separatore e i nomi
+        if (nomiList.length > 0) {
+            if (raceName) raceName += '  -  ';
+            raceName += nomiList.join(', ');
+        }
+        
+        // Inserisci il nome generato (sovrascrive quello esistente)
+        if (raceName) {
+            raceNameInput.value = raceName;
+        }
+    }
+    
+    // Event listener per il bottone auto-riempimento
+    document.getElementById('auto-fill-btn').addEventListener('click', generateRaceName);
+    
+    // **FUNZIONE NUOVA: Lettura automatica della data dal file**
+    const fileInput = document.getElementById('file');
+    const dateInput = document.getElementById('date');
+    
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            const lines = content.split('\n');
+            
+            // La data dovrebbe essere nella seconda riga (indice 1)
+            if (lines.length >= 2) {
+                const dateLineWithTime = lines[1].trim();
+                
+                // Estraiamo solo la parte della data (formato DD/MM/YYYY)
+                const dateMatch = dateLineWithTime.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                
+                if (dateMatch) {
+                    const [, day, month, year] = dateMatch;
+                    // Formattiamo per il campo date HTML (YYYY-MM-DD)
+                    const formattedDate = `${year}-${month}-${day}`;
+                    dateInput.value = formattedDate;
+                    
+                    console.log(`Data estratta dal file: ${day}/${month}/${year} -> ${formattedDate}`);
+                } else {
+                    console.warn('Formato data non riconosciuto nella riga:', dateLineWithTime);
+                }
+            } else {
+                console.warn('File troppo corto, impossibile estrarre la data');
+            }
+        };
+        
+        reader.onerror = function() {
+            console.error('Errore nella lettura del file');
+        };
+        
+        reader.readAsText(file);
+    });
+    
+    // Genera nome anche quando aggiungiamo/rimuoviamo spingitori (ora rimosso)
+    function updateFormInputWithNameGeneration() {
+        updateFormInput();
+        // Rimuoviamo la generazione automatica del nome
+    }
+    
+    // **FUNZIONE 2: Ricerca spingitori**
+    const searchInput = document.getElementById('search-spingitori');
+    // Usiamo la variabile availablePilots già dichiarata all'inizio
+    
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+        const pilotItems = availablePilots.querySelectorAll('.pilot-item.available');
+        
+        pilotItems.forEach(item => {
+            const searchData = item.dataset.search;
+            if (searchData.includes(searchTerm)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Aggiorniamo le funzioni esistenti per includere la generazione del nome
+    function addToRelay(pilotItem) {
+        // ... codice esistente per aggiungere alla staffetta ...
+        const id = pilotItem.dataset.id;
+        const name = pilotItem.dataset.name;
+        
+        // Nasconde l'elemento dalla lista disponibili
+        pilotItem.style.display = 'none';
+        
+        // Rimuove il messaggio vuoto se presente
+        const emptyMessage = relayOrder.querySelector('.empty-relay-message');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+        
+        // Crea nuovo elemento per la staffetta
+        const relayItem = document.createElement('div');
+        relayItem.className = 'pilot-item relay-item';
+        relayItem.draggable = true;
+        relayItem.dataset.id = id;
+        relayItem.dataset.name = name;
+        
+        relayItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="pilot-avatar me-2">${name.split(' ').map(n => n[0]).join('')}</div>
+                <div class="pilot-info">
+                    <div class="pilot-name">${name}</div>
+                </div>
+                <i class="bi bi-x-circle ms-auto text-danger" style="cursor: pointer;" onclick="removeFromRelay(this)"></i>
+            </div>
+        `;
+        
+        relayOrder.appendChild(relayItem);
+        setupDragAndDrop();            updateOrderNumbers();
+            updateFormInputWithNameGeneration(); // Non genera più automaticamente il nome
+    }
+    
+    // Aggiorna anche la rimozione
+    function removeFromRelay(removeButton) {
+        const relayItem = removeButton.closest('.pilot-item');
+        const id = relayItem.dataset.id;
+        
+        // Rimuove dalla staffetta
+        relayItem.remove();
+        
+        // Mostra di nuovo nella lista disponibili
+        const availableItem = availablePilots.querySelector(`[data-id="${id}"]`);
+        if (availableItem) {
+            availableItem.style.display = '';
+        }
+        
+        // Se non ci sono più elementi, mostra il messaggio vuoto
+        const remainingItems = relayOrder.querySelectorAll('.pilot-item:not(.empty-relay-message)');
+        if (remainingItems.length === 0) {
+            relayOrder.innerHTML = `
+                <div class="empty-relay-message text-center text-muted p-4">
+                    <i class="bi bi-arrow-left-circle fs-3 mb-2"></i>
+                    <div>Aggiungi spingitori dalla lista a sinistra</div>
+                    <small>Trascina per riordinare</small>
+                </div>
+            `;
+        }
+        
+        updateOrderNumbers();
+        updateFormInputWithNameGeneration(); // Non genera più automaticamente il nome
+    }
+    
+    // Modifica la funzione di drop per includere la generazione del nome
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            // Scambia gli elementi
+            const draggedParent = draggedElement.parentNode;
+            const targetParent = this.parentNode;
+            const draggedSibling = draggedElement.nextSibling;
+            const targetSibling = this.nextSibling;
+            
+            if (draggedSibling === this) {
+                targetParent.insertBefore(draggedElement, targetSibling);
+            } else {
+                targetParent.insertBefore(draggedElement, this);
+                draggedParent.insertBefore(this, draggedSibling);
+            }
+            
+            updateOrderNumbers();
+            updateFormInputWithNameGeneration(); // Non genera più automaticamente il nome
+        }
+        
+        this.classList.remove('drag-over');
+        return false;
+    }
+    
+    // Inizializzazione
+    updateFormInput();
+    
+    // Rimuoviamo la generazione automatica iniziale del nome
+    // setTimeout(() => {
+    //     generateRaceName();
+    // }, 100);
+});
+</script>
+{% endblock %}

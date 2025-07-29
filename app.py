@@ -1,44 +1,38 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask
 from flask_migrate import Migrate
-from models import db, Race, DataPoint, Spingitore, RaceSpingitore, Cartella
-from utils.file_parser import parse_race_file
-import os
+from models import db
 from dash_app import init_dashboard
 from comparison_dash import init_comparison_dashboard
+from config import config
+import os
 
-def create_app():
+def create_app(config_name=None):
+    """Application factory pattern"""
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
+    
     app = Flask(__name__)
     
-    # Percorso assoluto alla cartella data
-    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
-    os.makedirs(data_dir, exist_ok=True)
+    # Load configuration
+    app.config.from_object(config[config_name])
+    config[config_name].init_app(app)
     
-    # Assicurati che esista la cartella per il logo
-    os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/img'), exist_ok=True)
-    
-    # Percorso assoluto al database
-    database_path = os.path.join(data_dir, 'speedchart.db')
-    
-    # Stampa per debug
-    print(f"Using database at: {database_path}")
-    
-    # Configurazioni
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = 'your-secret-key'
-    
-    # Inizializza il database
+    # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)
     
-    # Inizializza le dashboard Dash
+    # Initialize Dash dashboards
     init_dashboard(app)
     init_comparison_dashboard(app)
     
-    # Registra i blueprint
-    from routes import main
-    app.register_blueprint(main)
+    # Register blueprints
+    from routes import main_blueprint, api_blueprint, team_blueprint, folder_blueprint
+    
+    app.register_blueprint(main_blueprint)
+    app.register_blueprint(api_blueprint)
+    app.register_blueprint(team_blueprint)
+    app.register_blueprint(folder_blueprint)
     
     return app
 

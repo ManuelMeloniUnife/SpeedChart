@@ -3,27 +3,27 @@
 {% block title %}SpeedChart - Gestione Team{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-md-8">
-        <h2>Gestione Team</h2>
-        <p>Gestisci il roster degli spingitori del tuo team.</p>
+        <h4>Gestione Team</h4>
+        <p class="mb-0 small">Gestisci il roster degli spingitori del tuo team.</p>
     </div>
     <div class="col-md-4 text-end">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#aggiungiSpingitoreModal">
             <i class="bi bi-person-plus-fill"></i> Aggiungi Membro
         </button>
     </div>
 </div>
 
 <!-- Sezione Piloti -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-person-fill-gear"></i> Piloti</h5>
+<div class="card mb-3">
+    <div class="card-header py-2">
+        <h6 class="mb-0"><i class="bi bi-person-fill-gear"></i> Piloti</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body p-2">
         {% if piloti %}
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover table-sm mb-0">
                 <thead>
                     <tr>
                         <th width="5%"></th>
@@ -36,14 +36,14 @@
                     {% for pilota in piloti %}
                     <tr>
                         <td>
-                            <div class="d-flex align-items-center justify-content-center bg-success rounded-circle text-white" style="width: 36px; height: 36px;">
+                            <div class="d-flex align-items-center justify-content-center bg-success rounded-circle text-white" style="width: 28px; height: 28px; font-size: 0.75rem;">
                                 {{ pilota.nome[0] }}{{ pilota.cognome[0] if pilota.cognome else "" }}
                             </div>
                         </td>
-                        <td>{{ pilota.nome }}</td>
-                        <td>{{ pilota.cognome or "" }}</td>
+                        <td class="small">{{ pilota.nome }}</td>
+                        <td class="small">{{ pilota.cognome or "" }}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modificaSpingitoreModal" 
+                            <button class="btn btn-sm btn-outline-primary me-1" style="font-size: 0.7rem; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#modificaSpingitoreModal" 
                                 data-id="{{ pilota.id }}" 
                                 data-nome="{{ pilota.nome }}" 
                                 data-cognome="{{ pilota.cognome or '' }}" 
@@ -133,7 +133,7 @@
                 <h5 class="modal-title" id="aggiungiSpingitoreModalLabel">Aggiungi Spingitore</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('main.aggiungi_spingitore') }}">
+            <form method="POST" action="{{ url_for('team.aggiungi_spingitore') }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="nome" class="form-label">Nome <span class="text-danger">*</span></label>
@@ -178,7 +178,7 @@
                 <h5 class="modal-title" id="modificaSpingitoreModalLabel">Modifica Spingitore</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('main.modifica_spingitore') }}">
+            <form method="POST" action="{{ url_for('team.modifica_spingitore') }}">
                 <input type="hidden" id="modifica_id" name="id">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -224,7 +224,7 @@
                 <h5 class="modal-title" id="eliminaSpingitoreModalLabel">Conferma eliminazione</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('main.elimina_spingitore') }}">
+            <form method="POST" action="{{ url_for('team.elimina_spingitore') }}">
                 <input type="hidden" id="elimina_id" name="id">
                 <div class="modal-body">
                     <p>Sei sicuro di voler eliminare lo spingitore <strong id="elimina_nome"></strong>?</p>

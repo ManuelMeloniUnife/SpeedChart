@@ -1,649 +1,1330 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedChart - Confronto: {{ race1.name }} vs {{ race2.name }}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/png">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <!-- ApexCharts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@latest"></script>
+    
+    <style>
+        /* Reset e layout principale */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Header minimalista e compatto */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0.2rem 1.5rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 60px;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+        }
+        
+        .header-races {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.01rem;
+        }
+        
+        .logo-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #495057;
+            transition: all 0.3s ease;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        
+        .logo-link:hover {
+            background-color: #f8f9fa;
+            transform: translateY(-1px);
+        }
+        
+        .logo-link img {
+            height: 48px;
+        }
+        
+        .race-details {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        
+        .comparison-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #495057;
+            background: #f8f9fa;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+        
+        .race-badge {
+            color: white;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        
+        .race1-badge {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            box-shadow: 0 1px 3px rgba(0, 123, 255, 0.3);
+        }
+        
+        .race2-badge {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            box-shadow: 0 1px 3px rgba(40, 167, 69, 0.3);
+        }
+        
+        .race-badge i {
+            font-size: 0.7rem;
+            margin-right: 0.3rem;
+        }
+        
+        .pushers-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.4rem 0.8rem;
+            margin: 0.2rem 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .pushers-row.race1-row {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-left-color: #007bff;
+        }
+        
+        .pushers-row.race2-row {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-left-color: #28a745;
+        }
+        
+        .race-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        
+        .race-date {
+            background: rgba(255, 255, 255, 0.9);
+            color: #495057;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pilot-badge {
+            background: #6c757d;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .pushers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        
+        .pusher-badge {
+            padding: 0.15rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        
+        /* Colori spingitori - stessi della vista singola */
+        .pusher-color-0 { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .pusher-color-1 { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .pusher-color-2 { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .pusher-color-3 { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .pusher-color-4 { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .pusher-color-5 { background: linear-gradient(135deg, #1abc9c, #16a085); }
+        .pusher-color-6 { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .pusher-color-7 { background: linear-gradient(135deg, #34495e, #2c3e50); }
+        .pusher-color-8 { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+        .pusher-color-9 { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+        .pusher-color-10 { background: linear-gradient(135deg, #e91e63, #c2185b); }
+        .pusher-color-11 { background: linear-gradient(135deg, #ff5722, #e64a19); }
+        .pusher-color-12 { background: linear-gradient(135deg, #607d8b, #546e7a); }
+        .pusher-color-13 { background: linear-gradient(135deg, #795548, #6d4c41); }
+        .pusher-color-14 { background: linear-gradient(135deg, #009688, #00796b); }
+        
+        /* Layout principale */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 80px);
+            gap: 1rem;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        /* Sezione grafico */
+        .chart-section {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chart-container {
+            flex: 1;
+            min-height: 650px;
+            cursor: crosshair;
+        }
+        
+        /* Sezione dati */
+        .data-section {
+            width: 320px;
+            min-width: 320px;
+            background: transparent;
+            border-radius: 12px;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100%;
+            padding: 0;
+        }
+        
+        .data-content {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+        
+        /* Wrapper per header + tabella senza gap */
+        .table-container {
+            display: flex;
+            flex-direction: column;
+            margin: 0 0 0.1rem 0;
+            height: calc(100% - 220px);
+        }
 
-{% block title %}SpeedChart - Confronto: {{ race1.name }} vs {{ race2.name }}{% endblock %}
+        /* Header fisso separato */
+        .table-header {
+            border-radius: 8px 8px 0 0;
+            background: transparent;
+        }
+        
+        .header-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
 
-{% block styles %}
-<style>
-    .data-table {
-        height: 29vh;
-        overflow-y: auto;
-    }
-    .table-row-1.active {
-        background-color: #007bff20 !important;
-    }
-    .table-row-2.active {
-        background-color: #28a74520 !important;
-    }
-    #comparison-chart {
-        height: 70vh; /* Aumentato */
-    }
-    #selected-point1-details, #selected-point2-details {
-        min-height: 100px;
-    }
-</style>
-{% endblock %}
+        .header-cell {
+            padding: 0.2rem 0.15rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            border-right: 1px solid #adb5bd;
+            box-sizing: border-box;
+        }
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h2>Confronto Corse</h2>
-        <div class="d-flex justify-content-between">
-            <div class="row w-100">
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header text-white" style="background-color: #007bff;">
-                            Corsa 1
-                        </div>
-                        <div class="card-body">
-                            <h5>{{ race1.name }}</h5>
-                            <p><strong>Data:</strong> {{ race1.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                            <p><strong>Pilota:</strong> {{ race1.get_pilota_name() }}</p>
-                            <p><strong>Spingitori:</strong> {{ race1.get_spingitori_names() }}</p>
-                        </div>
+        .header-cell:last-child {
+            border-right: none;
+        }
+        
+        .header-cell.distance {
+            background: #e9ecef;
+            color: #495057;
+            border-top: 1px solid #6c757d;
+            border-left: 3px solid #6c757d;
+            border-top-left-radius: 8px;
+            padding-right: 0.1rem;
+            width: 34.5%;
+        }
+        
+        .header-cell.race1 {
+            background: #bbdefb;
+            color: #0d47a1;
+            border-top: 1px solid #007bff;
+            padding-left: 0.2rem;
+            width: 33%;
+            padding: 0.15rem 0.1rem;
+        }
+        
+        .header-cell.race2 {
+            background: #c8e6c9;
+            color: #1b5e20;
+            border-top: 1px solid #28a745;
+            border-right: 1px solid #28a745;
+            border-top-right-radius: 8px;
+            width: 33%;
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            background: #f8f9fa;
+            border-radius: 0 0 8px 8px;
+            border-bottom: 1px solid #6c757d;
+            border-left: 3px solid #6c757d;
+            border-right: 1px solid #28a745;
+            padding: 0;
+            /* Nasconde la scrollbar ma mantiene lo scroll */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* Internet Explorer 10+ */
+        }
+
+        /* Nasconde la scrollbar per WebKit browsers (Chrome, Safari, Edge) */
+        .table-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .data-table td {
+            padding: 0.15rem 0.1rem;
+            font-size: 0.75rem;
+            border-bottom: 1px solid #adb5bd;
+            border-right: 1px solid #adb5bd;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        
+        .data-table td:first-child {
+            background: #f8f9fa;
+            color: #495057;
+        }
+        
+        .data-table td:nth-child(2) {
+            background: #e3f2fd;
+            color: #0d47a1;
+            width: 33%;
+        }
+        
+        .data-table td:last-child {
+            background: #e8f5e8;
+            color: #1b5e20;
+            border-right: 1px solid #28a745;
+            width: 33%;
+        }
+        
+        .data-table td:last-child {
+            border-right: none;
+        }
+        
+        .data-table tbody tr:hover td:first-child {
+            background-color: #e9ecef !important;
+        }
+        
+        .data-table tbody tr:hover td:nth-child(2) {
+            background-color: #bbdefb !important;
+        }
+        
+        .data-table tbody tr:hover td:last-child {
+            background-color: #c8e6c9 !important;
+        }
+        
+        .data-table tbody tr.active td:first-child {
+            background-color: #dee2e6 !important;
+        }
+        
+        .data-table tbody tr.active td:nth-child(2) {
+            background-color: #90caf9 !important;
+        }
+        
+        .data-table tbody tr.active td:last-child {
+            background-color: #a5d6a7 !important;
+        }
+        
+        /* Widget punti selezionati - due widget su righe separate */
+        .widgets-container {
+            margin: 0.2rem 0 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            flex-shrink: 0;
+        }
+        
+        .point-widget {
+            padding: 0.15rem;
+            border-radius: 8px;
+            border-top: 1px solid;
+            border-left: 3px solid;
+            flex-shrink: 0;
+        }
+        
+        .point-widget.race1 {
+            background: #dbeafe;
+            border-top-color: #007bff;
+            border-left-color: #007bff;
+        }
+        
+        .point-widget.race2 {
+            background: #d4edda;
+            border-top-color: #28a745;
+            border-left-color: #28a745;
+        }
+        
+        .point-widget-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 0.1rem;
+        }
+        
+        .point-metric {
+            text-align: center;
+            padding: 0.1rem;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .metric-label {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 500;
+            margin-bottom: 0.1rem;
+        }
+        
+        .metric-value {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .point-metric.race1 .metric-label {
+            color: #155ba8;
+        }
+        
+        .point-metric.race1 .metric-value {
+            color: #007bff;
+        }
+        
+        .point-metric.race2 .metric-label {
+            color: #155724;
+        }
+        
+        .point-metric.race2 .metric-value {
+            color: #28a745;
+        }
+        
+        /* Personalizzazione icona download ApexCharts */
+        .apexcharts-toolbar .apexcharts-menu-icon svg {
+            display: none;
+        }
+        
+        .apexcharts-toolbar .apexcharts-menu-icon::after {
+            content: '⬇';
+            font-size: 24px;
+            font-weight: 900;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            transform: translateY(2px) scaleX(1.3);
+        }
+        
+        .apexcharts-toolbar .apexcharts-menu-icon:hover::after {
+            color: #007bff;
+        }
+        
+        /* Distanziamento icone toolbar */
+        .apexcharts-toolbar .apexcharts-menu-item {
+            margin-right: 8px;
+        }
+        
+        .apexcharts-toolbar > div {
+            margin-right: 8px;
+        }
+        
+        /* Distanza maggiore tra home e download */
+        .apexcharts-toolbar .apexcharts-reset-icon {
+            margin-right: 12px;
+        }
+        
+        /* Riduzione sensibilità pan */
+        .apexcharts-canvas {
+            cursor: crosshair;
+            user-select: none;
+        }
+        
+        .apexcharts-canvas:active {
+            cursor: crosshair;
+        }
+        
+        /* Widget titles */
+        .widget-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 0.2rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+        }
+        
+        .widget-title.race1 {
+            background: #007bff;
+            color: white;
+        }
+        
+        .widget-title.race2 {
+            background: #28a745;
+            color: white;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .data-section {
+                width: 300px;
+                min-width: 300px;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .data-section {
+                width: 280px;
+                min-width: 280px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .data-section {
+                width: 100%;
+                align-self: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header minimalista -->
+    <div class="top-header">
+        <div class="logo-section">
+            <a href="{{ url_for('main.visualizza_dati') }}" class="logo-link">
+                <img src="{{ url_for('static', filename='img/logo-dark.png') }}" alt="SpeedChart">
+            </a>
+            
+            <!-- Righe corse nell'header -->
+            <div class="header-races">
+                <!-- Riga spingitori Corsa 1 -->
+                <div class="pushers-row race1-row">
+                    <div class="race-meta">
+                        <span class="race-date">{{ race1.date.strftime('%d/%m/%Y') }}</span>
+                        <span class="pilot-badge">{{ race1.get_pilota_name() }}</span>
+                    </div>
+                    <div class="pushers-list">
+                        {% for pusher in race1.get_spingitori_only() %}
+                        <span class="pusher-badge pusher-color-{{ loop.index0 % 15 }}">
+                            {{ pusher.nome_completo() }}
+                        </span>
+                        {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header text-white" style="background-color: #28a745;">
-                            Corsa 2
-                        </div>
-                        <div class="card-body">
-                            <h5>{{ race2.name }}</h5>
-                            <p><strong>Data:</strong> {{ race2.date.strftime('%d/%m/%Y %H:%M') }}</p>
-                            <p><strong>Pilota:</strong> {{ race2.get_pilota_name() }}</p>
-                            <p><strong>Spingitori:</strong> {{ race2.get_spingitori_names() }}</p>
-
-                        </div>
+                
+                <!-- Riga spingitori Corsa 2 -->
+                <div class="pushers-row race2-row">
+                    <div class="race-meta">
+                        <span class="race-date">{{ race2.date.strftime('%d/%m/%Y') }}</span>
+                        <span class="pilot-badge">{{ race2.get_pilota_name() }}</span>
+                    </div>
+                    <div class="pushers-list">
+                        {% for pusher in race2.get_spingitori_only() %}
+                        <span class="pusher-badge pusher-color-{{ loop.index0 % 15 }}">
+                            {{ pusher.nome_completo() }}
+                        </span>
+                        {% endfor %}
                     </div>
                 </div>
-            </div>
-            <div>
-                <a href="{{ url_for('main.compare') }}" class="btn btn-secondary ms-2">Torna alla selezione</a>
             </div>
         </div>
     </div>
-</div>
-
-<div class="row">
-    <!-- Grafico a sinistra - ampliato -->
-    <div class="col-md-8">
-        <div id="comparison-chart" class="border p-2"></div>
-    </div>
     
-    <!-- Tabelle a destra - ridotte -->
-    <div class="col-md-4">
-        <!-- Prima tabella -->
-        <div class="mb-3 border p-2">
-            <h5>Dati Corsa 1</h5>
-            <div class="data-table">
-                <table class="table table-striped table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>Distanza (m)</th>
-                            <th>Velocità (km/h)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="data-table1-body">
-                        <!-- Verrà popolato da JavaScript -->
-                    </tbody>
-                </table>
+    <!-- Layout principale -->
+    <div class="main-content">
+        <!-- Sezione grafico -->
+        <div class="chart-section">
+            <div id="chart-container" style="position: relative;">
+                <!-- Etichette hover personalizzate -->
+                <div id="x-axis-label" style="position: absolute; bottom: 5px; background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; display: none; pointer-events: none; z-index: 10;"></div>
+                <div id="y-axis-label" style="position: absolute; left: 5px; background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; display: none; pointer-events: none; z-index: 10; transform: rotate(-90deg); transform-origin: center;"></div>
             </div>
         </div>
         
-        <!-- Seconda tabella -->
-        <div class="border p-2">
-            <h5>Dati Corsa 2</h5>
-            <div class="data-table">
-                <table class="table table-striped table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>Distanza (m)</th>
-                            <th>Velocità (km/h)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="data-table2-body">
-                        <!-- Verrà popolato da JavaScript -->
-                    </tbody>
-                </table>
+        <!-- Sezione dati -->
+        <div class="data-section">
+            <div class="data-content">
+                <!-- Container per header + tabella -->
+                <div class="table-container">
+                    <!-- Header fisso della tabella -->
+                    <div class="table-header">
+                        <table class="header-table">
+                            <thead>
+                                <tr>
+                                    <th class="header-cell distance">Distanza (m)</th>
+                                    <th class="header-cell race1">Vel. 1 (km/h)</th>
+                                    <th class="header-cell race2">Vel. 2 (km/h)</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                    
+                    <!-- Corpo della tabella con scroll -->
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <tbody id="data-table-body">
+                                <!-- Popolato da JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            
+                <!-- Widget punti selezionati -->
+                <div class="widgets-container">
+                    <!-- Widget Corsa 1 -->
+                    <div class="point-widget race1" id="point-widget-race1">
+                        <div class="point-widget-content">
+                            <div class="point-metric race1">
+                                <span class="metric-label">Distanza</span>
+                                <span class="metric-value" id="widget-distance-1">-</span>
+                            </div>
+                            <div class="point-metric race1">
+                                <span class="metric-label">Velocità</span>
+                                <span class="metric-value" id="widget-velocity-1">-</span>
+                            </div>
+                            <div class="point-metric race1">
+                                <span class="metric-label">Tempo</span>
+                                <span class="metric-value" id="widget-time-1">-</span>
+                            </div>
+                            <div class="point-metric race1">
+                                <span class="metric-label">Accelerazione</span>
+                                <span class="metric-value" id="widget-acceleration-1">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget Corsa 2 -->
+                    <div class="point-widget race2" id="point-widget-race2">
+                        <div class="point-widget-content">
+                            <div class="point-metric race2">
+                                <span class="metric-label">Distanza</span>
+                                <span class="metric-value" id="widget-distance-2">-</span>
+                            </div>
+                            <div class="point-metric race2">
+                                <span class="metric-label">Velocità</span>
+                                <span class="metric-value" id="widget-velocity-2">-</span>
+                            </div>
+                            <div class="point-metric race2">
+                                <span class="metric-label">Tempo</span>
+                                <span class="metric-value" id="widget-time-2">-</span>
+                            </div>
+                            <div class="point-metric race2">
+                                <span class="metric-label">Accelerazione</span>
+                                <span class="metric-value" id="widget-acceleration-2">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mt-3">
-    <div class="col-md-6">
-        <h5>Dettagli punto - Corsa 1</h5>
-        <div id="selected-point1-details" class="p-2 border">
-            Nessun punto selezionato
-        </div>
-    </div>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <div class="col-md-6">
-        <h5>Dettagli punto - Corsa 2</h5>
-        <div id="selected-point2-details" class="p-2 border">
-            Nessun punto selezionato
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<!-- Aggiungiamo Plotly -->
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script>
-// Dati delle corse passati dal server
-var serverRace1Data = '{{ race1_data|tojson|safe }}';
-var serverRace2Data = '{{ race2_data|tojson|safe }}';
-var serverPoints1Data = '{{ points_data1|tojson|safe }}';
-var serverPoints2Data = '{{ points_data2|tojson|safe }}';
-
-// Converti le stringhe JSON in oggetti JavaScript
-const race1Data = JSON.parse(serverRace1Data);
-const race2Data = JSON.parse(serverRace2Data);
-const points1Data = JSON.parse(serverPoints1Data);
-const points2Data = JSON.parse(serverPoints2Data);
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Crea il grafico di confronto
-    const chartDiv = document.getElementById('comparison-chart');
+    <script>
+    // Blocca completamente qualsiasi scroll della pagina
+    window.addEventListener('scroll', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.scrollTo(0, 0);
+        return false;
+    }, { passive: false });
     
-    const trace1 = {
-        x: points1Data.map(point => point.distance),
-        y: points1Data.map(point => point.speed),
-        mode: 'lines',  // MODIFICATO: solo linee
-        name: race1Data.name,
-        line: {
-            color: '#007bff',
-            width: 2
-        },
-        hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
-    };
-
-    const trace2 = {
-        x: points2Data.map(point => point.distance),
-        y: points2Data.map(point => point.speed),
-        mode: 'lines',  // MODIFICATO: solo linee
-        name: race2Data.name,
-        line: {
-            color: '#28a745',
-            width: 2
-        },
-        hovertemplate: '<b>Distanza:</b> %{x:.2f} m<br><b>Velocità:</b> %{y:.2f} km/h<extra></extra>'
-    };
-
-    // NUOVO: Aggiungi la gestione della tastiera dopo la creazione del grafico
-    document.addEventListener('keydown', function(e) {
-        if (document.activeElement.tagName === 'INPUT' || 
-            document.activeElement.tagName === 'TEXTAREA' || 
-            document.activeElement.tagName === 'SELECT') {
-            return;
+    // Blocca scroll tramite rotella del mouse
+    window.addEventListener('wheel', function(e) {
+        if (e.target.closest('.table-wrapper')) {
+            return; // Permetti scroll solo nella tabella
         }
-
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            if (selectedPoint1Index === null && selectedPoint2Index === null) {
-                // Seleziona il primo punto di entrambe le curve
-                selectPoint1(0);
-                selectPoint2(0);
-            } else {
-                const nextIndex1 = selectedPoint1Index + 1;
-                const nextIndex2 = selectedPoint2Index + 1;
-
-                const canMove1 = nextIndex1 < points1Data.length;
-                const canMove2 = nextIndex2 < points2Data.length;
-
-                // Determina la lunghezza del grafico più corto
-                const minLength = Math.min(points1Data.length, points2Data.length);
-                
-                // Controlla se siamo attualmente nella zona di sincronizzazione
-                const inSyncZone = selectedPoint1Index < minLength && selectedPoint2Index < minLength;
-
-                if (inSyncZone && canMove1 && canMove2) {
-                    // Entrambi sono nella zona di sincronizzazione e possono muoversi, muovi insieme
-                    selectPoint1(nextIndex1);
-                    selectPoint2(nextIndex2);
-                } else if (canMove1 && canMove2 && selectedPoint1Index === selectedPoint2Index) {
-                    // Sono sincronizzati ma uno sta per uscire dalla zona, muovi entrambi
-                    selectPoint1(nextIndex1);
-                    selectPoint2(nextIndex2);
-                } else {
-                    // Movimento asincrono - muovi solo quello che può ancora muoversi
-                    if (canMove1) {
-                        selectPoint1(nextIndex1);
+        e.preventDefault();
+        return false;
+    }, { passive: false });
+    
+    // Blocca scroll tramite touch
+    window.addEventListener('touchmove', function(e) {
+        if (e.target.closest('.table-wrapper')) {
+            return; // Permetti scroll solo nella tabella
+        }
+        e.preventDefault();
+        return false;
+    }, { passive: false });
+    
+    // Dati delle corse passati dal server
+    const race1Data = {{ race1_data|tojson|safe }};
+    const race2Data = {{ race2_data|tojson|safe }};
+    const points1Data = {{ points1_data|tojson|safe }};
+    const points2Data = {{ points2_data|tojson|safe }};
+    
+    // Unione dei dati per la tabella
+    let combinedTableData = [];
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeChart();
+        populateDataTable();
+        
+        // Non selezionare automaticamente alcun punto
+        clearSelection();
+    });
+    
+    let chart = null;
+    let selectedPointIndex = null;
+    
+    function initializeChart() {
+        const options = {
+            series: [
+                {
+                    name: race1Data.name,
+                    data: points1Data.map((point, index) => ({
+                        x: point.distance,
+                        y: point.speed,
+                        pointIndex: index,
+                        raceIndex: 1
+                    }))
+                },
+                {
+                    name: race2Data.name,
+                    data: points2Data.map((point, index) => ({
+                        x: point.distance,
+                        y: point.speed,
+                        pointIndex: index,
+                        raceIndex: 2
+                    }))
+                }
+            ],
+            chart: {
+                type: 'line',
+                height: '100%',
+                toolbar: {
+                    show: true,
+                    offsetX: -20,
+                    offsetY: 0,
+                    tools: {
+                        selection: false,
+                        zoom: true,
+                        zoomin: false,
+                        zoomout: false,
+                        pan: false,
+                        download: true,
+                        reset: true
+                    },
+                    export: {
+                        csv: {
+                            filename: 'confronto_corse',
+                            columnDelimiter: ',',
+                            headerCategory: 'Distanza',
+                            headerValue: 'Velocità'
+                        },
+                        svg: {
+                            filename: 'confronto_corse'
+                        },
+                        png: {
+                            filename: 'confronto_corse'
+                        }
                     }
-                    if (canMove2) {
-                        selectPoint2(nextIndex2);
+                },
+                events: {
+                    dataPointSelection: function(event, chartContext, config) {
+                        if (config.dataPointIndex !== undefined && config.seriesIndex !== undefined) {
+                            selectPoint(config.dataPointIndex, config.seriesIndex);
+                        }
+                    }
+                },
+                animations: {
+                    enabled: true,
+                    easing: 'easeinout',
+                    speed: 800
+                },
+                zoom: {
+                    enabled: true,
+                    type: 'xy',
+                    autoScaleYaxis: true,
+                    zoomedArea: {
+                        fill: {
+                            color: '#90CAF9',
+                            opacity: 0.4
+                        },
+                        stroke: {
+                            color: '#0D47A1',
+                            opacity: 0.4,
+                            width: 1
+                        }
+                    }
+                },
+                pan: {
+                    enabled: true,
+                    mode: 'xy'
+                }
+            },
+            dataLabels: {
+                enabled: false
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            colors: ['#007bff', '#28a745'],
+            grid: {
+                show: true,
+                borderColor: '#e9ecef',
+                strokeDashArray: 3,
+                position: 'back',
+                xaxis: {
+                    lines: {
+                        show: true
+                    }
+                },
+                yaxis: {
+                    lines: {
+                        show: true
                     }
                 }
+            },
+            xaxis: {
+                type: 'numeric',
+                decimalsInFloat: 1,
+                tickAmount: 10,
+                crosshairs: {
+                    show: false
+                },
+                labels: {
+                    style: {
+                        colors: '#6c757d'
+                    },
+                    formatter: function(val) {
+                        return parseFloat(val).toFixed(1);
+                    }
+                },
+                title: {
+                    text: '',
+                    style: {
+                        color: '#6c757d',
+                        fontSize: '12px',
+                        fontWeight: 600
+                    }
+                }
+            },
+            yaxis: {
+                decimalsInFloat: 1,
+                tickAmount: 8,
+                crosshairs: {
+                    show: false
+                },
+                labels: {
+                    style: {
+                        colors: '#6c757d'
+                    },
+                    formatter: function(val) {
+                        return parseFloat(val).toFixed(1);
+                    }
+                },
+                title: {
+                    text: '',
+                    style: {
+                        color: '#6c757d',
+                        fontSize: '12px',
+                        fontWeight: 600
+                    }
+                }
+            },
+            tooltip: {
+                enabled: false
+            },
+            markers: {
+                size: 0,
+                hover: {
+                    size: 4,
+                    sizeOffset: 1
+                },
+                strokeColors: '#fff',
+                strokeWidth: 1,
+                fillOpacity: 1,
+                shape: 'circle'
+            },
+            legend: {
+                show: false
+            }
+        };
+        
+        chart = new ApexCharts(document.querySelector("#chart-container"), options);
+        chart.render();
+        
+        // Gestione hover e click manuale
+        setTimeout(() => {
+            const chartContainer = document.querySelector("#chart-container");
+            if (chartContainer) {
+                let isHovering = false;
+                
+                // Hover tracking per aggiornare widget
+                chartContainer.addEventListener('mousemove', function(e) {
+                    const svgElement = chartContainer.querySelector('svg');
+                    if (!svgElement) return;
+                    
+                    const rect = svgElement.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    
+                    try {
+                        // Sistema coordinate ApexCharts
+                        const xAxisMin = chart.w.globals.minX;
+                        const xAxisMax = chart.w.globals.maxX;
+                        const plotLeft = chart.w.globals.translateX;
+                        const plotWidth = chart.w.globals.gridWidth;
+                        const relativeX = mouseX - plotLeft;
+                        
+                        if (relativeX < 0 || relativeX > plotWidth) return;
+                        
+                        // Converti posizione pixel in valore X
+                        const xValue = xAxisMin + (relativeX / plotWidth) * (xAxisMax - xAxisMin);
+                        
+                        // Trova l'indice del punto più vicino nella tabella combinata
+                        let closestIndex = 0;
+                        let minDistance = Math.abs(combinedTableData[0].distance - xValue);
+                        
+                        for (let i = 1; i < combinedTableData.length; i++) {
+                            const distance = Math.abs(combinedTableData[i].distance - xValue);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestIndex = i;
+                            }
+                        }
+                        
+                        // Aggiorna solo i widget di distanza e velocità
+                        updateWidgetsOnHover(closestIndex);
+                        highlightHoverPoints(closestIndex);
+                        isHovering = true;
+                        
+                    } catch (error) {
+                        console.log('Error in hover:', error);
+                    }
+                });
+                
+                // Pulisci hover quando il mouse esce
+                chartContainer.addEventListener('mouseleave', function() {
+                    if (isHovering) {
+                        clearHoverPoints();
+                        isHovering = false;
+                    }
+                });
+                
+                chartContainer.addEventListener('click', function(e) {
+                    handleChartClick(e);
+                });
+            }
+        }, 200);
+    }
+    
+    function populateDataTable() {
+        const tableBody = document.getElementById('data-table-body');
+        tableBody.innerHTML = '';
+        combinedTableData = [];
+        
+        // Trova la lunghezza massima
+        const maxLength = Math.max(points1Data.length, points2Data.length);
+        
+        for (let i = 0; i < maxLength; i++) {
+            const point1 = points1Data[i];
+            const point2 = points2Data[i];
+            
+            // Usa la distanza del primo punto disponibile
+            const distance = point1 ? point1.distance : (point2 ? point2.distance : 0);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${distance.toFixed(1)}</td>
+                <td>${point1 ? point1.speed.toFixed(1) : '-'}</td>
+                <td>${point2 ? point2.speed.toFixed(1) : '-'}</td>
+            `;
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', () => {
+                selectPoint(i, 0);
+            });
+            tableBody.appendChild(row);
+            
+            combinedTableData.push({
+                distance: distance,
+                point1: point1,
+                point2: point2,
+                index: i
+            });
+        }
+    }
+    
+    function selectPoint(pointIndex, seriesIndex) {
+        selectedPointIndex = pointIndex;
+        
+        // Trova il punto corrispondente nella tabella
+        const tableIndex = pointIndex;
+        
+        // Aggiorna la tabella
+        const rows = document.querySelectorAll('#data-table-body tr');
+        rows.forEach((row, i) => {
+            row.classList.toggle('active', i === tableIndex);
+        });
+        
+        // Scroll alla riga selezionata
+        if (rows[tableIndex]) {
+            const tableWrapper = document.querySelector('.table-wrapper');
+            const row = rows[tableIndex];
+            
+            // Calcola se la riga è visibile
+            const tableWrapperRect = tableWrapper.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            
+            const isRowVisible = rowRect.top >= tableWrapperRect.top && 
+                               rowRect.bottom <= tableWrapperRect.bottom;
+            
+            if (!isRowVisible) {
+                // Centra la riga nella vista
+                const rowOffsetTop = row.offsetTop;
+                const tableWrapperHeight = tableWrapper.clientHeight;
+                const rowHeight = row.clientHeight;
+                
+                const scrollTop = rowOffsetTop - (tableWrapperHeight / 2) + (rowHeight / 2);
+                tableWrapper.scrollTop = Math.max(0, scrollTop);
+            }
+        }
+        
+        // Aggiorna i widget
+        updatePointDetails(pointIndex);
+        
+        // Evidenzia i punti sui grafici
+        highlightPointsOnChart(pointIndex);
+    }
+    
+    function clearSelection() {
+        selectedPointIndex = null;
+        
+        // Rimuovi evidenziazione dalla tabella
+        const rows = document.querySelectorAll('#data-table-body tr');
+        rows.forEach(row => row.classList.remove('active'));
+        
+        // Pulisci i dettagli dei punti
+        updatePointDetails(null);
+        
+        // Rimuovi evidenziazione dal grafico
+        if (chart) {
+            chart.updateOptions({
+                annotations: {
+                    points: []
+                }
+            }, false, true);
+        }
+    }
+    
+    function updatePointDetails(pointIndex) {
+        // Widget Corsa 1
+        const widgetDistance1 = document.getElementById('widget-distance-1');
+        const widgetVelocity1 = document.getElementById('widget-velocity-1');
+        const widgetTime1 = document.getElementById('widget-time-1');
+        const widgetAcceleration1 = document.getElementById('widget-acceleration-1');
+        
+        // Widget Corsa 2
+        const widgetDistance2 = document.getElementById('widget-distance-2');
+        const widgetVelocity2 = document.getElementById('widget-velocity-2');
+        const widgetTime2 = document.getElementById('widget-time-2');
+        const widgetAcceleration2 = document.getElementById('widget-acceleration-2');
+        
+        if (pointIndex !== null && pointIndex < combinedTableData.length) {
+            const data = combinedTableData[pointIndex];
+            
+            // Aggiorna widget Corsa 1
+            if (data.point1) {
+                widgetDistance1.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity1.textContent = `${data.point1.speed.toFixed(1)} km/h`;
+                widgetTime1.textContent = `${data.point1.time.toFixed(2)} s`;
+                widgetAcceleration1.textContent = `${data.point1.acceleration.toFixed(2)} m/s²`;
+            } else {
+                widgetDistance1.textContent = '-';
+                widgetVelocity1.textContent = '-';
+                widgetTime1.textContent = '-';
+                widgetAcceleration1.textContent = '-';
+            }
+            
+            // Aggiorna widget Corsa 2
+            if (data.point2) {
+                widgetDistance2.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity2.textContent = `${data.point2.speed.toFixed(1)} km/h`;
+                widgetTime2.textContent = `${data.point2.time.toFixed(2)} s`;
+                widgetAcceleration2.textContent = `${data.point2.acceleration.toFixed(2)} m/s²`;
+            } else {
+                widgetDistance2.textContent = '-';
+                widgetVelocity2.textContent = '-';
+                widgetTime2.textContent = '-';
+                widgetAcceleration2.textContent = '-';
+            }
+        } else {
+            // Reset tutti i widget
+            widgetDistance1.textContent = '-';
+            widgetVelocity1.textContent = '-';
+            widgetTime1.textContent = '-';
+            widgetAcceleration1.textContent = '-';
+            widgetDistance2.textContent = '-';
+            widgetVelocity2.textContent = '-';
+            widgetTime2.textContent = '-';
+            widgetAcceleration2.textContent = '-';
+        }
+    }
+    
+    function updateWidgetsOnHover(combinedTableIndex) {
+        // Aggiorna solo distanza e velocità in hover
+        const widgetDistance1 = document.getElementById('widget-distance-1');
+        const widgetVelocity1 = document.getElementById('widget-velocity-1');
+        const widgetDistance2 = document.getElementById('widget-distance-2');
+        const widgetVelocity2 = document.getElementById('widget-velocity-2');
+        
+        if (combinedTableIndex < combinedTableData.length) {
+            const data = combinedTableData[combinedTableIndex];
+            
+            // Aggiorna solo distanza e velocità per entrambe le corse
+            if (data.point1) {
+                widgetDistance1.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity1.textContent = `${data.point1.speed.toFixed(1)} km/h`;
+            } else {
+                widgetDistance1.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity1.textContent = '-';
+            }
+            
+            if (data.point2) {
+                widgetDistance2.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity2.textContent = `${data.point2.speed.toFixed(1)} km/h`;
+            } else {
+                widgetDistance2.textContent = `${data.distance.toFixed(0)} m`;
+                widgetVelocity2.textContent = '-';
+            }
+        }
+    }
+    
+    function highlightHoverPoints(combinedTableIndex) {
+        const data = combinedTableData[combinedTableIndex];
+        
+        // Rimuovi eventuali marker di hover precedenti
+        chart.removeAnnotation('hover-point-1');
+        chart.removeAnnotation('hover-point-2');
+        
+        // Aggiungi marker di hover per entrambe le corse (se i punti esistono)
+        if (data.point1) {
+            chart.addPointAnnotation({
+                id: 'hover-point-1',
+                x: data.distance,
+                y: data.point1.speed,
+                marker: {
+                    size: 4,
+                    fillColor: '#007bff', // Colore blu come l'asse della corsa 1
+                    strokeColor: '#ffffff',
+                    strokeWidth: 1,
+                    shape: 'circle'
+                }
+            });
+        }
+        
+        if (data.point2) {
+            chart.addPointAnnotation({
+                id: 'hover-point-2',
+                x: data.distance,
+                y: data.point2.speed,
+                marker: {
+                    size: 4,
+                    fillColor: '#28a745', // Colore verde come l'asse della corsa 2
+                    strokeColor: '#ffffff',
+                    strokeWidth: 1,
+                    shape: 'circle'
+                }
+            });
+        }
+    }
+    
+    function clearHoverPoints() {
+        // Rimuovi i marker di hover
+        chart.removeAnnotation('hover-point-1');
+        chart.removeAnnotation('hover-point-2');
+    }
+    
+    function highlightPointsOnChart(pointIndex) {
+        if (!chart || pointIndex === null || pointIndex >= combinedTableData.length) return;
+        
+        const data = combinedTableData[pointIndex];
+        const annotations = [];
+        
+        // Evidenzia punto Corsa 1
+        if (data.point1) {
+            annotations.push({
+                x: data.distance,
+                y: data.point1.speed,
+                marker: {
+                    size: 4,
+                    fillColor: '#dc3545',
+                    strokeWidth: 0
+                }
+            });
+        }
+        
+        // Evidenzia punto Corsa 2  
+        if (data.point2) {
+            annotations.push({
+                x: data.distance,
+                y: data.point2.speed,
+                marker: {
+                    size: 4,
+                    fillColor: '#dc3545',
+                    strokeWidth: 0
+                }
+            });
+        }
+        
+        // Aggiorna le annotazioni
+        chart.updateOptions({
+            annotations: {
+                points: annotations
+            }
+        }, false, true);
+    }
+    
+    function handleChartClick(e) {
+        const svgElement = document.querySelector("#chart-container svg");
+        if (!svgElement) return;
+        
+        const rect = svgElement.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        
+        try {
+            const xAxisMin = chart.w.globals.minX;
+            const xAxisMax = chart.w.globals.maxX;
+            const plotLeft = chart.w.globals.translateX;
+            const plotWidth = chart.w.globals.gridWidth;
+            const relativeX = mouseX - plotLeft;
+            
+            if (relativeX < 0 || relativeX > plotWidth) return;
+            
+            const xValue = xAxisMin + (relativeX / plotWidth) * (xAxisMax - xAxisMin);
+            
+            // Trova il punto più vicino nella tabella combinata
+            let closestIndex = 0;
+            let minDistance = Math.abs(combinedTableData[0].distance - xValue);
+            
+            for (let i = 1; i < combinedTableData.length; i++) {
+                const distance = Math.abs(combinedTableData[i].distance - xValue);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestIndex = i;
+                }
+            }
+            
+            selectPoint(closestIndex, 0);
+            
+        } catch (error) {
+            console.log('Error in chart click:', error);
+        }
+    }
+    
+    // Navigazione con tastiera
+    document.addEventListener('keydown', function(e) {
+        if (document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            if (selectedPointIndex === null) {
+                selectPoint(0, 0);
+            } else if (selectedPointIndex < combinedTableData.length - 1) {
+                selectPoint(selectedPointIndex + 1, 0);
             }
         } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            if (selectedPoint1Index === null && selectedPoint2Index === null) {
-                // Seleziona l'ultimo punto di entrambe le curve
-                selectPoint1(points1Data.length - 1);
-                selectPoint2(points2Data.length - 1);
-            } else {
-                // Logica migliorata per tornare indietro con sincronizzazione intelligente
-                const prevIndex1 = selectedPoint1Index - 1;
-                const prevIndex2 = selectedPoint2Index - 1;
-
-                const canMove1 = prevIndex1 >= 0;
-                const canMove2 = prevIndex2 >= 0;
-
-                // Determina la lunghezza del grafico più corto
-                const minLength = Math.min(points1Data.length, points2Data.length);
-                
-                // Controlla se siamo attualmente nella zona dove entrambi i grafici hanno dati
-                const inSyncZone1 = selectedPoint1Index < minLength;
-                const inSyncZone2 = selectedPoint2Index < minLength;
-                
-                // Controlla se stiamo tornando nella zona di sincronizzazione
-                const returningToSyncZone1 = prevIndex1 < minLength && selectedPoint1Index >= minLength;
-                const returningToSyncZone2 = prevIndex2 < minLength && selectedPoint2Index >= minLength;
-
-                if (inSyncZone1 && inSyncZone2 && canMove1 && canMove2) {
-                    // Entrambi sono nella zona di sincronizzazione, muovi insieme
-                    selectPoint1(prevIndex1);
-                    selectPoint2(prevIndex2);
-                } else if (returningToSyncZone1 || returningToSyncZone2) {
-                    // Uno o entrambi stanno tornando nella zona di sync, riallaccia
-                    const targetIndex = Math.min(prevIndex1, prevIndex2, minLength - 1);
-                    if (targetIndex >= 0) {
-                        selectPoint1(Math.max(0, targetIndex));
-                        selectPoint2(Math.max(0, targetIndex));
-                    }
-                } else {
-                    // Logica normale per movimento asincrono
-                    // Muovi prima quello che è più avanti (più lontano dall'inizio del suo grafico)
-                    if (selectedPoint1Index > selectedPoint2Index && canMove1) {
-                        selectPoint1(prevIndex1);
-                    } else if (selectedPoint2Index > selectedPoint1Index && canMove2) {
-                        selectPoint2(prevIndex2);
-                    } else if (selectedPoint1Index === selectedPoint2Index && canMove1 && canMove2) {
-                        // Sono alla stessa posizione, muovi entrambi
-                        selectPoint1(prevIndex1);
-                        selectPoint2(prevIndex2);
-                    } else if (canMove1 && !canMove2) {
-                        selectPoint1(prevIndex1);
-                    } else if (canMove2 && !canMove1) {
-                        selectPoint2(prevIndex2);
-                    }
+            if (selectedPointIndex === null) {
+                selectPoint(combinedTableData.length - 1, 0);
+            } else if (selectedPointIndex > 0) {
+                selectPoint(selectedPointIndex - 1, 0);
+            }
+        } else if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            chart.updateOptions({
+                xaxis: {
+                    min: undefined,
+                    max: undefined
+                },
+                yaxis: {
+                    min: undefined,
+                    max: undefined
                 }
-            }
-        }
-    }); 
-    const layout = {
-        title: "Confronto Velocità/Distanza",
-        hovermode: 'closest',
-        xaxis: {
-            title: 'Distanza (m)',
-            gridcolor: 'rgba(0,0,0,0.1)',
-            zeroline: false
-        },
-        yaxis: {
-            title: 'Velocità (km/h)',
-            gridcolor: 'rgba(0,0,0,0.1)',
-            zeroline: false
-        },
-        plot_bgcolor: 'white',
-        paper_bgcolor: 'white',
-        legend: {
-            bgcolor: 'rgba(255,255,255,0.9)',
-            bordercolor: 'rgba(0,0,0,0.2)',
-            borderwidth: 1
-        },
-        margin: {l: 50, r: 40, t: 50, b: 40},
-        shapes: [] // Array vuoto per le forme (linee verticali)
-    };
-    
-    Plotly.newPlot(chartDiv, [trace1, trace2], layout);
-    
-    // Variabili per memorizzare gli indici dei punti selezionati
-    let selectedPoint1Index = null;
-    let selectedPoint2Index = null;
-    
-    // Popola le tabelle
-    const table1Body = document.getElementById('data-table1-body');
-    const table2Body = document.getElementById('data-table2-body');
-    
-    // Tabella corsa 1
-    points1Data.forEach((point, index) => {
-        const row = document.createElement('tr');
-        row.id = `row1-${index}`;
-        row.className = 'table-row-1';
-        row.innerHTML = `
-            <td>${point.distance.toFixed(2)}</td>
-            <td>${point.speed.toFixed(2)}</td>
-        `;
-        
-        // Gestisci il click sulla riga
-        row.addEventListener('click', () => {
-            selectPoint1(index);
-        });
-        
-        table1Body.appendChild(row);
-    });
-    
-    // Tabella corsa 2
-    points2Data.forEach((point, index) => {
-        const row = document.createElement('tr');
-        row.id = `row2-${index}`;
-        row.className = 'table-row-2';
-        row.innerHTML = `
-            <td>${point.distance.toFixed(2)}</td>
-            <td>${point.speed.toFixed(2)}</td>
-        `;
-        
-        // Gestisci il click sulla riga
-        row.addEventListener('click', () => {
-            selectPoint2(index);
-        });
-        
-        table2Body.appendChild(row);
-    });
-    
-    // MODIFICATO: Gestore per il click ovunque sul grafico (non solo sulla linea)
-    chartDiv.on('plotly_click', function(data) {
-        const clickedPointX = data.points[0].x;
-        
-        // Trova il punto più vicino nella prima curva
-        let closestIndex1 = 0;
-        let minDistance1 = Infinity;
-        
-        points1Data.forEach((point, index) => {
-            const distance = Math.abs(point.distance - clickedPointX);
-            if (distance < minDistance1) {
-                minDistance1 = distance;
-                closestIndex1 = index;
-            }
-        });
-        
-        // Seleziona il punto nella prima curva
-        selectPoint1(closestIndex1);
-        
-        // Trova il punto più vicino nella seconda curva
-        let closestIndex2 = 0;
-        let minDistance2 = Infinity;
-        
-        points2Data.forEach((point, index) => {
-            const distance = Math.abs(point.distance - clickedPointX);
-            if (distance < minDistance2) {
-                minDistance2 = distance;
-                closestIndex2 = index;
-            }
-        });
-        
-        // Seleziona il punto nella seconda curva
-        selectPoint2(closestIndex2);
-    });
-
-    // NUOVO: Gestione click su aree vuote del grafico
-    chartDiv.plotContainer = chartDiv.querySelector('.plot-container');
-    if (chartDiv.plotContainer) {
-        chartDiv.plotContainer.addEventListener('mousedown', function(event) {
-            // Verifica che non sia un drag
-            const startX = event.clientX;
-            const startY = event.clientY;
-            
-            const mouseUpHandler = function(upEvent) {
-                const endX = upEvent.clientX;
-                const endY = upEvent.clientY;
-                const distance = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
-                
-                // Se il movimento è minimo, è un click
-                if (distance < 5) {
-                    // Ottieni le coordinate del click
-                    const rect = chartDiv.getBoundingClientRect();
-                    const xaxis = chartDiv._fullLayout.xaxis;
-                    
-                    if (xaxis) {
-                        // Converti le coordinate pixel in coordinate dati
-                        const relativeX = upEvent.clientX - rect.left - xaxis._offset;
-                        const xData = xaxis.p2c(relativeX);
-                        
-                        // Trova il punto più vicino per entrambe le curve
-                        let closestIndex1 = 0;
-                        let minDistance1 = Infinity;
-                        
-                        points1Data.forEach((point, index) => {
-                            const distance = Math.abs(point.distance - xData);
-                            if (distance < minDistance1) {
-                                minDistance1 = distance;
-                                closestIndex1 = index;
-                            }
-                        });
-                        
-                        let closestIndex2 = 0;
-                        let minDistance2 = Infinity;
-                        
-                        points2Data.forEach((point, index) => {
-                            const distance = Math.abs(point.distance - xData);
-                            if (distance < minDistance2) {
-                                minDistance2 = distance;
-                                closestIndex2 = index;
-                            }
-                        });
-                        
-                        // Seleziona i punti più vicini
-                        selectPoint1(closestIndex1);
-                        selectPoint2(closestIndex2);
-                    }
-                }
-                
-                // Rimuovi il listener
-                document.removeEventListener('mouseup', mouseUpHandler);
-            };
-            
-            document.addEventListener('mouseup', mouseUpHandler);
-        });
-    }
-
-    // Aggiungi queste funzioni per deselezionare i punti
-    function deselectPoint1() {
-        selectedPoint1Index = null;
-        document.querySelectorAll('.table-row-1').forEach(row => {
-            row.classList.remove('active');
-        });
-        document.getElementById('selected-point1-details').innerHTML = "Nessun punto selezionato";
-        updateChartHighlights();
-    }
-
-    function deselectPoint2() {
-        selectedPoint2Index = null;
-        document.querySelectorAll('.table-row-2').forEach(row => {
-            row.classList.remove('active');
-        });
-        document.getElementById('selected-point2-details').innerHTML = "Nessun punto selezionato";
-        updateChartHighlights();
-    }
-    
-    // MODIFICATO: Funzione per selezionare un punto e aggiornare UI della corsa 1
-    function selectPoint1(index) {
-        selectedPoint1Index = index;
-        
-        // Resetta tutte le righe
-        document.querySelectorAll('.table-row-1').forEach(row => {
-            row.classList.remove('active');
-        });
-        
-        // Evidenzia la riga selezionata
-        const selectedRow = document.getElementById(`row1-${index}`);
-        selectedRow.classList.add('active');
-        
-        // MODIFICATO: Scorri solo all'interno del container della tabella, non la pagina intera
-        const tableContainers = document.querySelectorAll('.data-table');
-        if (tableContainers.length > 0) {
-            const tableContainer = tableContainers[0]; // Prima tabella
-            
-            // Calcola la posizione relativa della riga all'interno del container
-            const rowTop = selectedRow.offsetTop;
-            const containerHeight = tableContainer.clientHeight;
-            const scrollPosition = rowTop - (containerHeight / 2);
-            
-            // Applica lo scroll solo al container della tabella
-            tableContainer.scrollTop = scrollPosition;
-        }
-        
-        // Aggiorna dettagli del punto
-        const point = points1Data[index];
-        
-        // Calcola accelerazione media
-        let avgAcceleration = 0;
-        if (point.time > 0) {
-            const startSpeed = 0; // Assume velocità iniziale zero
-            const endSpeed = point.speed / 3.6; // Converti in m/s
-            avgAcceleration = (endSpeed - startSpeed) / point.time;
-        }
-        
-        document.getElementById('selected-point1-details').innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-1"><strong>Distanza:</strong> ${point.distance.toFixed(2)} m</p>
-                    <p class="mb-1"><strong>Velocità:</strong> ${point.speed.toFixed(2)} km/h</p>
-                </div>
-                <div class="col-md-6">
-                    <p class="mb-1"><strong>Accelerazione:</strong> ${point.acceleration.toFixed(2)} m/s²</p>
-                    <p class="mb-1"><strong>Tempo:</strong> ${point.time.toFixed(2)} s</p>
-                    <p class="mb-1"><strong>Accelerazione media:</strong> ${avgAcceleration.toFixed(2)} m/s²</p>
-                </div>
-            </div>
-        `;
-        
-        // Aggiorna il grafico
-        updateChartHighlights();
-    }
-    
-    // MODIFICATO: Funzione per selezionare un punto e aggiornare UI della corsa 2
-    function selectPoint2(index) {
-        selectedPoint2Index = index;
-        
-        // Resetta tutte le righe
-        document.querySelectorAll('.table-row-2').forEach(row => {
-            row.classList.remove('active');
-        });
-        
-        // Evidenzia la riga selezionata
-        const selectedRow = document.getElementById(`row2-${index}`);
-        selectedRow.classList.add('active');
-        
-        // MODIFICATO: Scorri solo all'interno del container della seconda tabella
-        const tableContainers = document.querySelectorAll('.data-table');
-        if (tableContainers.length > 1) {
-            const tableContainer = tableContainers[1]; // Seconda tabella
-            
-            // Calcola la posizione relativa della riga all'interno del container
-            const rowTop = selectedRow.offsetTop;
-            const containerHeight = tableContainer.clientHeight;
-            const scrollPosition = rowTop - (containerHeight / 2);
-            
-            // Applica lo scroll solo al container della tabella
-            tableContainer.scrollTop = scrollPosition;
-        }
-        
-        // Aggiorna dettagli del punto
-        const point = points2Data[index];
-        
-        // Calcola accelerazione media
-        let avgAcceleration = 0;
-        if (point.time > 0) {
-            const startSpeed = 0; // Assume velocità iniziale zero
-            const endSpeed = point.speed / 3.6; // Converti in m/s
-            avgAcceleration = (endSpeed - startSpeed) / point.time;
-        }
-        
-        document.getElementById('selected-point2-details').innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-1"><strong>Distanza:</strong> ${point.distance.toFixed(2)} m</p>
-                    <p class="mb-1"><strong>Velocità:</strong> ${point.speed.toFixed(2)} km/h</p>
-                </div>
-                <div class="col-md-6">
-                    <p class="mb-1"><strong>Accelerazione:</strong> ${point.acceleration.toFixed(2)} m/s²</p>
-                    <p class="mb-1"><strong>Tempo:</strong> ${point.time.toFixed(2)} s</p>
-                    <p class="mb-1"><strong>Accelerazione media:</strong> ${avgAcceleration.toFixed(2)} m/s²</p>
-                </div>
-            </div>
-        `;
-        
-        // Aggiorna il grafico
-        updateChartHighlights();
-    }
-    
-    // Funzione per aggiornare le evidenziazioni sul grafico
-    function updateChartHighlights() {
-        // ... resto del codice per le linee verticali ...
-        
-        // Aggiorna i punti evidenziati ROSSI
-        const updatedTraces = [];
-        
-        if (selectedPoint1Index !== null) {
-            const point1 = points1Data[selectedPoint1Index];
-            updatedTraces.push({
-                x: [point1.distance],
-                y: [point1.speed],
-                mode: 'markers',
-                marker: {
-                    color: 'red',        // MODIFICATO: rosso
-                    size: 12,            // MODIFICATO: più grande
-                    line: {
-                        color: 'darkred', // MODIFICATO: bordo rosso scuro
-                        width: 2
-                    }
-                },
-                showlegend: false,
-                hoverinfo: 'none'
             });
         }
-
-        if (selectedPoint2Index !== null) {
-            const point2 = points2Data[selectedPoint2Index];
-            updatedTraces.push({
-                x: [point2.distance],
-                y: [point2.speed],
-                mode: 'markers',
-                marker: {
-                    color: 'red',        // MODIFICATO: rosso
-                    size: 12,            // MODIFICATO: più grande
-                    line: {
-                        color: 'darkred', // MODIFICATO: bordo rosso scuro
-                        width: 2
-                    }
-                },
-                showlegend: false,
-                hoverinfo: 'none'
-            });
-        }
-        
-        if (selectedPoint2Index !== null) {
-            const point2 = points2Data[selectedPoint2Index];
-            updatedTraces.push({
-                x: [point2.distance],
-                y: [point2.speed],
-                mode: 'markers',
-                marker: {
-                    color: '#ff5500', // Arancione per punto 2
-                    size: 10,
-                    line: {
-                        color: 'white',
-                        width: 2
-                    }
-                },
-                showlegend: false,
-                hoverinfo: 'none'
-            });
-        }
-        
-        // Rimuovi eventuali punti evidenziati esistenti
-        if (chartDiv.data.length > 2) {
-            const tracesToDelete = Array.from({ length: chartDiv.data.length - 2 }, (_, i) => i + 2);
-            Plotly.deleteTraces(chartDiv, tracesToDelete);
-        }
-        
-        // Aggiungi i nuovi punti evidenziati
-        if (updatedTraces.length > 0) {
-            Plotly.addTraces(chartDiv, updatedTraces);
-        }
-    }
-});
-</script>
-{% endblock %}
+    });
+    
+    </script>
+</body>
+</html>

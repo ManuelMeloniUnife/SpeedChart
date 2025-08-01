@@ -248,6 +248,59 @@ def compare():
                           spingitori=spingitori,
                           spingitori_data=spingitori_data)
 
+@main.route('/view_comparison_direct/<int:race1_id>/<int:race2_id>')
+def view_comparison_direct(race1_id, race2_id):
+    """Visualizza il confronto tra due corse con dati precaricati (senza Dash)"""
+    race1 = Race.query.get_or_404(race1_id)
+    race2 = Race.query.get_or_404(race2_id)
+    
+    # Ottieni i dati per entrambe le corse
+    data_points1 = DataPoint.query.filter_by(race_id=race1_id).order_by(DataPoint.distance).all()
+    data_points2 = DataPoint.query.filter_by(race_id=race2_id).order_by(DataPoint.distance).all()
+    
+    # Converti i dati della prima corsa
+    race1_data = {
+        'id': race1.id,
+        'name': race1.name,
+        'date': race1.date.strftime('%d/%m/%Y %H:%M'),
+        'pilota': race1.get_pilota_name(),
+        'spingitori': race1.get_spingitori_names(),
+        'notes': race1.notes
+    }
+    
+    points1_data = [
+        {
+            'distance': float(point.distance),
+            'speed': float(point.speed),
+            'acceleration': float(point.acceleration) if point.acceleration is not None else 0.0,
+            'time': float(point.time) if point.time is not None else 0.0
+        } for point in data_points1
+    ]
+    
+    # Converti i dati della seconda corsa
+    race2_data = {
+        'id': race2.id,
+        'name': race2.name,
+        'date': race2.date.strftime('%d/%m/%Y %H:%M'),
+        'pilota': race2.get_pilota_name(),
+        'spingitori': race2.get_spingitori_names(),
+        'notes': race2.notes
+    }
+    
+    points2_data = [
+        {
+            'distance': float(point.distance),
+            'speed': float(point.speed),
+            'acceleration': float(point.acceleration) if point.acceleration is not None else 0.0,
+            'time': float(point.time) if point.time is not None else 0.0
+        } for point in data_points2
+    ]
+    
+    return render_template('view_comparison_direct.html', 
+                          race1=race1, race2=race2,
+                          race1_data=race1_data, race2_data=race2_data,
+                          points1_data=points1_data, points2_data=points2_data)
+
 @main.route('/view_comparison/<int:race1_id>/<int:race2_id>')
 def view_comparison(race1_id, race2_id):
     """Visualizza il confronto tra due corse"""

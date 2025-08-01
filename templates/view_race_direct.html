@@ -116,6 +116,82 @@
         .spingitore-badge {
             background: linear-gradient(135deg, #007bff, #0056b3);
             box-shadow: 0 1px 3px rgba(0, 123, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        /* Colori diversi per ogni spingitore - usando data attributes per precisione */
+        .spingitore-badge[data-spingitore-id="0"] {
+            background: linear-gradient(135deg, #007bff, #0056b3); /* Blu */
+        }
+        
+        .spingitore-badge[data-spingitore-id="1"] {
+            background: linear-gradient(135deg, #dc3545, #c82333); /* Rosso */
+        }
+        
+        .spingitore-badge[data-spingitore-id="2"] {
+            background: linear-gradient(135deg, #28a745, #1e7e34); /* Verde */
+        }
+        
+        .spingitore-badge[data-spingitore-id="3"] {
+            background: linear-gradient(135deg, #ffc107, #e0a800); /* Giallo */
+        }
+        
+        .spingitore-badge[data-spingitore-id="4"] {
+            background: linear-gradient(135deg, #6f42c1, #5a359a); /* Viola */
+        }
+        
+        .spingitore-badge[data-spingitore-id="5"] {
+            background: linear-gradient(135deg, #e83e8c, #d91a72); /* Rosa */
+        }
+        
+        .spingitore-badge[data-spingitore-id="6"] {
+            background: linear-gradient(135deg, #17a2b8, #138496); /* Ciano */
+        }
+        
+        .spingitore-badge[data-spingitore-id="7"] {
+            background: linear-gradient(135deg, #fd7e14, #e8680e); /* Arancione */
+        }
+        
+        .spingitore-badge[data-spingitore-id="8"] {
+            background: linear-gradient(135deg, #6610f2, #520dc2); /* Indaco */
+        }
+        
+        .spingitore-badge[data-spingitore-id="9"] {
+            background: linear-gradient(135deg, #20c997, #1aa179); /* Teal */
+        }
+        
+        .spingitore-badge[data-spingitore-id="10"] {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef); /* Grigio chiaro */
+            color: #495057; /* Testo scuro per contrasto */
+        }
+        
+        .spingitore-badge[data-spingitore-id="11"] {
+            background: linear-gradient(135deg, #6c757d, #5a6268); /* Grigio */
+        }
+        
+        .spingitore-badge[data-spingitore-id="12"] {
+            background: linear-gradient(135deg, #343a40, #23272b); /* Grigio scuro */
+        }
+        
+        .spingitore-badge[data-spingitore-id="13"] {
+            background: linear-gradient(135deg, #795548, #5d4037); /* Marrone */
+        }
+        
+        .spingitore-badge[data-spingitore-id="14"] {
+            background: linear-gradient(135deg, #607d8b, #455a64); /* Blue Grey */
+        }
+        
+        .spingitore-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .spingitore-badge.active-selection {
+            border: 3px solid #007bff;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+            filter: brightness(0.8);
+            transform: scale(1.05);
         }
         
         .pilot-badge i, .spingitore-badge i {
@@ -157,6 +233,16 @@
         /* Distanza maggiore tra home e download */
         .apexcharts-toolbar .apexcharts-reset-icon {
             margin-right: 12px;
+        }
+        
+        /* Stile per l'icona dell'occhio */
+        .apexcharts-toolbar .apexcharts-eye-icon {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .apexcharts-toolbar .apexcharts-eye-icon:hover {
+            opacity: 0.7;
         }
         
         /* Riduzione sensibilità pan */
@@ -659,7 +745,7 @@
             <div class="race-details">
                 <div class="race-date">
                     <i class="bi bi-calendar3 me-2"></i>
-                    {{ race.date.strftime('%d %B %Y') }}
+                    <span id="race-date-display">{{ race.date.strftime('%d %B %Y') }}</span>
                 </div>
                 
                 <div class="team-tags">
@@ -671,7 +757,7 @@
                     
                     <!-- Spingitori badges -->
                     {% for spingitore in race.get_spingitori_only() %}
-                    <span class="spingitore-badge">
+                    <span class="spingitore-badge" data-spingitore-id="{{ loop.index0 }}" data-spingitore-name="{{ spingitore.nome_completo() }}">
                         <i class="bi bi-people me-1"></i>
                         {{ spingitore.nome_completo() }}
                     </span>
@@ -783,9 +869,87 @@
     const raceData = {{ race_data|tojson|safe }};
     const pointsData = {{ points_data|tojson|safe }};
     
+    // Funzione per convertire la data in italiano
+    function convertDateToItalian() {
+        const dateElement = document.getElementById('race-date-display');
+        if (dateElement) {
+            const englishText = dateElement.textContent;
+            const monthMap = {
+                'January': 'gennaio', 'February': 'febbraio', 'March': 'marzo',
+                'April': 'aprile', 'May': 'maggio', 'June': 'giugno',
+                'July': 'luglio', 'August': 'agosto', 'September': 'settembre',
+                'October': 'ottobre', 'November': 'novembre', 'December': 'dicembre'
+            };
+            
+            let italianText = englishText;
+            for (const [english, italian] of Object.entries(monthMap)) {
+                italianText = italianText.replace(english, italian);
+            }
+            dateElement.textContent = italianText;
+        }
+    }
+    
+    // Sistema per tratti spingitori
+    let spingitoriTratti = [];
+    let modalitaSelezione = null;
+    let spingitoreAttivo = null;
+    let fasceSpingitoriVisibili = true; // Stato visibilità delle fasce
+    
+    // Funzione per mostrare/nascondere le fasce degli spingitori
+    function toggleFasceSpingitori() {
+        fasceSpingitoriVisibili = !fasceSpingitoriVisibili;
+        
+        if (fasceSpingitoriVisibili) {
+            // Ricarica le fasce
+            aggiornaBackgroundGrafico();
+        } else {
+            // Nascondi solo le fasce preservando altre annotations
+            spingitoriTratti.forEach((tratto, index) => {
+                chart.removeAnnotation(`fascia-spingitore-${index}`);
+            });
+        }
+        
+        // Aggiorna il tooltip dell'icona
+        const eyeIcon = document.querySelector('.apexcharts-eye-icon');
+        if (eyeIcon) {
+            eyeIcon.title = fasceSpingitoriVisibili ? 
+                'Nascondi fasce spingitori' : 
+                'Mostra fasce spingitori';
+        }
+    }
+    
+    // Funzione per rimuovere solo le annotations temporanee preservando quelle degli spingitori
+    function rimuoviAnnotationsTemporanee() {
+        // Rimuovi solo annotations specifiche temporanee
+        chart.removeAnnotation('hover-point');
+        chart.removeAnnotation('selected-point');
+        // Non chiamare clearAnnotations() per preservare le fasce degli spingitori
+    }
+    
+    // Colori per gli spingitori (corrispondenti ESATTAMENTE ai CSS dei badge)
+    const spingitoriColori = [
+        { bg: 'rgba(0, 123, 255, 0.15)', border: '#007bff' },      // 0: Blu
+        { bg: 'rgba(220, 53, 69, 0.15)', border: '#dc3545' },      // 1: Rosso
+        { bg: 'rgba(40, 167, 69, 0.15)', border: '#28a745' },      // 2: Verde
+        { bg: 'rgba(255, 193, 7, 0.15)', border: '#ffc107' },      // 3: Giallo
+        { bg: 'rgba(111, 66, 193, 0.15)', border: '#6f42c1' },     // 4: Viola
+        { bg: 'rgba(232, 62, 140, 0.15)', border: '#e83e8c' },     // 5: Rosa
+        { bg: 'rgba(23, 162, 184, 0.15)', border: '#17a2b8' },     // 6: Ciano
+        { bg: 'rgba(253, 126, 20, 0.15)', border: '#fd7e14' },     // 7: Arancione
+        { bg: 'rgba(102, 16, 242, 0.15)', border: '#6610f2' },     // 8: Indaco
+        { bg: 'rgba(32, 201, 151, 0.15)', border: '#20c997' },     // 9: Teal
+        { bg: 'rgba(248, 249, 250, 0.25)', border: '#6c757d' },    // 10: Grigio chiaro (più opaco)
+        { bg: 'rgba(108, 117, 125, 0.15)', border: '#6c757d' },    // 11: Grigio
+        { bg: 'rgba(52, 58, 64, 0.15)', border: '#343a40' },       // 12: Grigio scuro
+        { bg: 'rgba(121, 85, 72, 0.15)', border: '#795548' },      // 13: Marrone
+        { bg: 'rgba(96, 125, 139, 0.15)', border: '#607d8b' }      // 14: Blue Grey
+    ];
+    
     document.addEventListener('DOMContentLoaded', function() {
+        convertDateToItalian();
         initializeChart();
         populateDataTable();
+        initializeSpingitoriSystem();
         
         // Non selezionare automaticamente alcun punto
         clearSelection();
@@ -812,13 +976,22 @@
                     offsetX: -20,
                     offsetY: 0,
                     tools: {
-                        download: true,
                         selection: false,
                         zoom: true,
                         zoomin: false,
                         zoomout: false,
                         pan: false,
-                        reset: true
+                        download: true,
+                        reset: true,
+                        customIcons: [{
+                            icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+                            index: 0,
+                            title: 'Mostra/Nascondi fasce spingitori',
+                            class: 'apexcharts-eye-icon',
+                            click: function(chart, options, e) {
+                                toggleFasceSpingitori();
+                            }
+                        }]
                     },
                     export: {
                         csv: {
@@ -1042,7 +1215,13 @@
                         // Converte la posizione pixel in valore X del grafico
                         const xValue = xAxisMin + (relativeX / plotWidth) * (xAxisMax - xAxisMin);
                         
-                        // Trova il punto più vicino basato sul valore X (distanza)
+                        // Gestisci modalità selezione spingitore
+                        if (modalitaSelezione === 'spingitore' && spingitoreAttivo) {
+                            aggiungiTrattoSpingitore(xValue);
+                            return;
+                        }
+                        
+                        // Modalità normale: trova il punto più vicino
                         let closestIndex = 0;
                         let minDistance = Math.abs(pointsData[0].distance - xValue);
                         
@@ -1147,8 +1326,8 @@
         // Pulisci i dettagli del punto
         updatePointDetails(null, null);
         
-        // Rimuovi evidenziazione dal grafico
-        chart.clearAnnotations();
+        // Rimuovi evidenziazione dal grafico (ma mantieni fasce spingitori)
+        rimuoviAnnotationsTemporanee();
     }
     
     function updatePointDetails(point, index) {
@@ -1223,7 +1402,7 @@
         // Possiamo usare le annotazioni per aggiungere un marker
         const point = pointsData[index];
         
-        chart.clearAnnotations();
+        rimuoviAnnotationsTemporanee();
         chart.addPointAnnotation({
             x: point.distance,
             y: point.speed,
@@ -1232,7 +1411,8 @@
                 fillColor: '#ff0000',
                 strokeColor: '#ffffff',
                 strokeWidth: 1
-            }
+            },
+            id: 'selected-point'
         });
     }
     
@@ -1288,6 +1468,143 @@
         
         xLabel.style.display = 'none';
         yLabel.style.display = 'none';
+    }
+    
+    // ========== SISTEMA SPINGITORI ==========
+    
+    function initializeSpingitoriSystem() {
+        // Aggiungi event listeners ai badge spingitori
+        const spingitoriBadges = document.querySelectorAll('.spingitore-badge');
+        spingitoriBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                const spingitoreId = parseInt(this.dataset.spingitoreId);
+                const spingitoreNome = this.dataset.spingitoreName;
+                startSpingitoreSelection(spingitoreId, spingitoreNome, this);
+            });
+        });
+    }
+    
+    function startSpingitoreSelection(spingitoreId, nome, badgeElement) {
+        // Reset modalità precedente
+        resetSelectionMode();
+        
+        // Attiva modalità selezione
+        modalitaSelezione = 'spingitore';
+        spingitoreAttivo = { id: spingitoreId, nome: nome };
+        
+        // Evidenzia badge attivo
+        badgeElement.classList.add('active-selection');
+        
+        // Cambia cursore del grafico
+        const chartContainer = document.querySelector('#chart-container');
+        chartContainer.style.cursor = 'crosshair';
+        
+        // Mostra messaggio informativo
+        console.log(`Modalità selezione attiva per ${nome}. Clicca sul grafico per selezionare il punto finale.`);
+        
+        // TODO: Aggiungere toast o indicazione visiva
+    }
+    
+    function resetSelectionMode() {
+        modalitaSelezione = null;
+        spingitoreAttivo = null;
+        
+        // Rimuovi evidenziazione da tutti i badge
+        document.querySelectorAll('.spingitore-badge').forEach(badge => {
+            badge.classList.remove('active-selection');
+        });
+        
+        // Reset cursore
+        const chartContainer = document.querySelector('#chart-container');
+        chartContainer.style.cursor = 'crosshair';
+    }
+    
+    function aggiungiTrattoSpingitore(xFinale) {
+        if (!spingitoreAttivo) return;
+        
+        // Controlla se questo spingitore ha già un tratto
+        const trattoEsistente = spingitoriTratti.find(t => t.spingitoreId === spingitoreAttivo.id);
+        let xInizio = 0;
+        
+        if (trattoEsistente) {
+            // Se il tratto esiste, mantieni il punto di inizio originale
+            xInizio = trattoEsistente.xInizio;
+            // Rimuovi il tratto esistente
+            spingitoriTratti = spingitoriTratti.filter(t => t.spingitoreId !== spingitoreAttivo.id);
+            console.log(`Modificato tratto esistente per ${spingitoreAttivo.nome} - mantenuto inizio: ${xInizio.toFixed(1)}m`);
+        } else {
+            // Se è un nuovo tratto, calcola il punto iniziale come fine dell'ultimo tratto
+            if (spingitoriTratti.length > 0) {
+                xInizio = Math.max(...spingitoriTratti.map(t => t.xFinale));
+            }
+            console.log(`Nuovo tratto per ${spingitoreAttivo.nome} - inizio: ${xInizio.toFixed(1)}m`);
+        }
+        
+        // Crea nuovo tratto
+        const nuovoTrattoe = {
+            spingitoreId: spingitoreAttivo.id,
+            nome: spingitoreAttivo.nome,
+            xInizio: xInizio,
+            xFinale: xFinale,
+            colore: spingitoriColori[spingitoreAttivo.id % spingitoriColori.length]
+        };
+        
+        spingitoriTratti.push(nuovoTrattoe);
+        
+        // Se stiamo modificando un tratto esistente, aggiorna l'inizio del tratto successivo
+        if (trattoEsistente) {
+            // Trova il tratto che iniziava dove finiva il tratto modificato
+            const trattoSuccessivo = spingitoriTratti.find(t => 
+                t.spingitoreId !== spingitoreAttivo.id && 
+                Math.abs(t.xInizio - trattoEsistente.xFinale) < 0.1 // Tolleranza per confronto float
+            );
+            
+            if (trattoSuccessivo) {
+                // Aggiorna l'inizio del tratto successivo al nuovo punto finale
+                trattoSuccessivo.xInizio = xFinale;
+                console.log(`Aggiornato inizio tratto successivo (${trattoSuccessivo.nome}) a ${xFinale.toFixed(1)}m`);
+            }
+        }
+        
+        // Aggiorna grafico
+        aggiornaBackgroundGrafico();
+        
+        // Reset modalità
+        resetSelectionMode();
+        
+        console.log(`Tratto ${trattoEsistente ? 'aggiornato' : 'aggiunto'} per ${spingitoreAttivo.nome}: ${xInizio.toFixed(1)}m - ${xFinale.toFixed(1)}m`);
+    }
+    
+    function aggiornaBackgroundGrafico() {
+        // Rimuovi annotations esistenti per fasce di background
+        chart.clearAnnotations();
+        
+        // Aggiungi fasce colorate per ogni tratto solo se visibili
+        if (fasceSpingitoriVisibili) {
+            spingitoriTratti.forEach((tratto, index) => {
+                chart.addXaxisAnnotation({
+                    x: tratto.xInizio,
+                    x2: tratto.xFinale,
+                    fillColor: tratto.colore.bg,
+                    borderColor: tratto.colore.border,
+                    borderWidth: 1,
+                    opacity: 0.3,
+                    id: `fascia-spingitore-${index}`,
+                    label: {
+                        text: tratto.nome,
+                        position: 'top',
+                        orientation: 'horizontal',
+                        textAnchor: 'start',
+                        offsetX: 10,
+                        style: {
+                            color: tratto.colore.border,
+                            background: 'white',
+                            fontSize: '10px'
+                        }
+                    }
+                });
+            });
+        }
     }
     
     </script>
